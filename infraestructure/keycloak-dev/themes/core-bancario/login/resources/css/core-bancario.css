@@ -1,0 +1,93 @@
+/* Tema de login Core Bancario — alineado con la pantalla de entrada del Backoffice (index.css: .pantalla-auth). */
+:root {
+  color-scheme: light;
+  --cb-marca: #0b1145;
+  --cb-marca-suave: #171d5e;
+  --cb-fondo: #f4f5f8;
+  --cb-texto: #1f2430;
+  --cb-texto-suave: #6b7085;
+  --cb-borde: #e3e5ec;
+  --cb-error: #b42318;
+  --cb-panel: 42%;
+}
+
+html, body, .login-pf body {
+  background: var(--cb-fondo) !important;
+  color: var(--cb-texto);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+}
+
+/* Panel izquierdo navy con el wordmark */
+body::before {
+  content: "";
+  position: fixed; inset: 0 auto 0 0;
+  width: var(--cb-panel);
+  background: var(--cb-marca) url("../img/logo-bd-core.svg") no-repeat center center;
+  background-size: min(300px, 70%) auto;
+  z-index: 0;
+}
+
+/* Contenido a la derecha */
+.login-pf-page {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  margin-left: var(--cb-panel);
+  padding: 2rem 1.5rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: none !important;
+}
+.login-pf-page .container, .login-pf .container { padding-top: 0; }
+
+/* Nombre del ambiente (realm) como etiqueta discreta */
+#kc-header { margin: 0 0 1rem; padding: 0; text-align: center; }
+#kc-header-wrapper {
+  color: var(--cb-texto-suave) !important;
+  font-size: 0.8rem !important; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 0 !important; line-height: 1.4;
+}
+
+/* Tarjeta del formulario */
+.card-pf, .pf-c-login__main {
+  width: 100%; max-width: 420px; margin: 0 auto;
+  background: #fff !important; color: var(--cb-texto) !important;
+  border: 1px solid var(--cb-borde) !important; border-top: 1px solid var(--cb-borde) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 24px rgba(11, 17, 69, 0.08) !important;
+  padding: 1.75rem 2rem !important;
+}
+.card-pf h1, #kc-page-title, .login-pf-header h1 {
+  color: var(--cb-marca) !important; font-size: 1.4rem !important; font-weight: 700; margin: 0 0 1rem !important;
+}
+label, .pf-c-form__label-text, .control-label { color: var(--cb-texto) !important; font-weight: 600; font-size: 0.85rem; }
+
+/* Campos */
+input[type="text"], input[type="password"], input[type="email"], input.pf-c-form-control, .pf-c-form-control {
+  background: #fff !important; color: var(--cb-texto) !important;
+  border: 1px solid #c9ccd8 !important; border-radius: 8px !important;
+  box-shadow: none !important; height: 2.5rem; padding: 0 0.75rem;
+}
+input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, .pf-c-form-control:focus {
+  border-color: var(--cb-marca) !important; outline: 2px solid rgba(11, 17, 69, 0.18); outline-offset: 0;
+}
+.pf-c-input-group .pf-c-button.pf-m-control { background: #fff !important; border: 1px solid #c9ccd8 !important; border-left: 0 !important; color: var(--cb-texto-suave) !important; border-radius: 0 8px 8px 0 !important; }
+
+/* Boton principal */
+#kc-login, .pf-c-button.pf-m-primary, input[type="submit"].pf-m-primary {
+  background: var(--cb-marca) !important; color: #fff !important; border: 0 !important; border-radius: 8px !important;
+  height: 2.6rem; font-weight: 600; letter-spacing: 0.01em;
+}
+#kc-login:hover, .pf-c-button.pf-m-primary:hover { background: var(--cb-marca-suave) !important; }
+
+/* Enlaces y mensajes */
+a, .login-pf a { color: var(--cb-marca) !important; }
+a:hover, .login-pf a:hover { color: var(--cb-marca-suave) !important; text-decoration: underline; }
+.pf-c-alert.pf-m-danger, .alert-error, .kc-feedback-text { color: var(--cb-error); }
+.pf-c-helper-text__item.pf-m-error, .pf-c-form__helper-text.pf-m-error, span.pf-c-form__helper-text, #input-error, .kc-feedback-text { color: var(--cb-error) !important; }
+
+/* Pantallas angostas: el panel navy pasa arriba */
+@media (max-width: 720px) {
+  body::before { inset: 0 0 auto 0; width: 100%; height: 120px; background-size: auto 60%; }
+  .login-pf-page { margin-left: 0; padding-top: 150px; justify-content: flex-start; }
+  .card-pf, .pf-c-login__main { padding: 1.5rem 1.25rem !important; }
+}

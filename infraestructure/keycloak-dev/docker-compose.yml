@@ -1,0 +1,32 @@
+# Core Bancario - Keycloak de desarrollo (SEG-010)
+# Levanta un Keycloak local con el realm de ejemplo ya importado
+# (realm-export.json), siguiendo la convencion de nomenclatura de
+# tenants de ARQ-020 (nombre de realm = codigo_cliente en minusculas).
+#
+# Uso:
+#   docker compose up -d
+#   Consola admin: http://localhost:8080  (usuario: admin / clave: admin)
+#
+# Este stack es SOLO para desarrollo local. En producción, cada cliente
+# SaaS tiene su propio realm dentro de la instancia de Keycloak compartida
+# (ver DAD Seccion 19.8, ARQ-020) - aqui se preconfigura el del cliente cero
+# de desarrollo, "dev" (codigo_cliente='DEV', ver dir.CLIENTE_SAAS).
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: keycloak-corebancario-dev
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+      - ./themes/core-bancario:/opt/keycloak/themes/core-bancario:ro
+      - keycloak-data:/opt/keycloak/data
+    restart: unless-stopped
+
+volumes:
+  keycloak-data:

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>CoreBancario.Api</RootNamespace>
+    <!-- InvariantGlobalization=true rompe Microsoft.Data.SqlClient (necesita
+         ICU/collations para abrir la conexion) -> System.NotSupportedException
+         "Globalization Invariant Mode is not supported". Se deja desactivado. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Validacion de JWT contra Keycloak (SEG-009). No viene en el framework
+         compartido de ASP.NET Core, hay que restaurarlo por NuGet. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
+    <!-- Acceso a SQL Server -->
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <!-- Micro-ORM para las consultas Dapper de los repositorios -->
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <!-- Catalogo OpenAPI + pantalla Swagger (solo se publica en Development). Sirve para importar los endpoints en Bruno / SoapUI. -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+</Project>

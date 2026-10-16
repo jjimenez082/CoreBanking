@@ -1,0 +1,119 @@
+{
+  "realm": "dev",
+  "enabled": true,
+  "displayName": "Core Bancario - DEV (desarrollo)",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "accessTokenLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "usuario_core",
+        "description": "Rol base para cualquier usuario autenticado del Core Bancario"
+      },
+      {
+        "name": "administrador_core",
+        "description": "Rol administrativo del Core Bancario (uso interno de desarrollo)"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "core-bancario-frontend",
+      "name": "Core Bancario - Frontend",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "compania",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "compania",
+            "claim.name": "compania",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "nivel_riesgo",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "nivel_riesgo",
+            "claim.name": "nivel_riesgo",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "core-bancario-backend",
+      "name": "Core Bancario - Backend (sistema a sistema)",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "secret": "dev-secret-change-me",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "compania",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "compania",
+            "claim.name": "compania",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "qa.arquitecto",
+      "enabled": true,
+      "email": "qa.arquitecto@example.com",
+      "emailVerified": true,
+      "firstName": "QA",
+      "lastName": "Arquitecto",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Password123!",
+          "temporary": true
+        }
+      ],
+      "attributes": {
+        "compania": ["DEV"],
+        "nivel_riesgo": ["Bajo"]
+      },
+      "realmRoles": ["usuario_core"]
+    }
+  ]
+}

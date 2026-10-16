@@ -1,0 +1,102 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "react-oidc-context";
+import { useApiClient } from "../api/useApiClient";
+import { usePermisos } from "../contexts/PermisosContext";
+import { useFavoritas } from "../api/useFavoritas";
+import { TileApp } from "../components/TileApp";
+import { todosLosTiles, idDeTile } from "../aplicaciones";
+import { useLeidas } from "../api/useNotificaciones";
+import type { GestionResponse, NotificacionResponse } from "../api/tipos";
+
+export function DashboardPage() {
+  const auth = useAuth();
+  const api = useApiClient();
+  const { tienePermiso } = usePermisos();
+  const { favoritas } = useFavoritas();
+  const [totalPendientes, setTotalPendientes] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notifs, setNotifs] = useState<NotificacionResponse[]>([]);
+  const { leidas } = useLeidas();
+
+  useEffect(() => {
+    let cancelado = false;
+
+    api
+      .get<GestionResponse[]>("/api/gestiones/pendientes")
+      .then((respuesta) => {
+        if (!cancelado) setTotalPendientes(respuesta.data.filter((g) => g.puedeResolver).length);
+      })
+      .catch((err) => {
+        if (!cancelado) setError(err.message);
+      });
+
+    api
+      .get<NotificacionResponse[]>("/api/notificaciones")
+      .then((r) => {
+        if (!cancelado) setNotifs(r.data);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelado = true;
+    };
+  }, [api]);
+
+  const compania = (auth.user?.profile as Record<string, unknown> | undefined)?.compania as
+    | string
+    | undefined;
+
+  const favoritasVisibles = todosLosTiles()
+    .filter((t) => t.ruta && (!t.permiso || tienePermiso(t.permiso)) && favoritas.includes(idDeTile(t) ?? ""))
+    .map((t) => ({ id: idDeTile(t)!, tile: t }));
+
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>
+        Sesión de <strong>{auth.user?.profile.name}</strong>
+        {compania ? (
+          <>
+            {" "}
+            en la compañía <strong>{compania}</strong>
+          </>
+        ) : null}
+      </p>
+
+      <div className="tarjetas">
+        <Link to="/notificaciones" className="tarjeta tarjeta--enlace" aria-label="Abrir la app de notificaciones">
+          <div className="tarjeta__valor">{notifs.filter((n) => !leidas.has(n.clave)).length}</div>
+          <div className="tarjeta__etiqueta">Notificaciones sin leer <span aria-hidden="true">→</span></div>
+        </Link>
+        <Link to="/gestiones/aprobacion" className="tarjeta tarjeta--enlace" aria-label="Ir a la aprobación de gestiones">
+          <div className="tarjeta__valor">
+            {error ? "—" : totalPendientes ?? "…"}
+          </div>
+          <div className="tarjeta__etiqueta">Gestiones por aprobar <span aria-hidden="true">→</span></div>
+        </Link>
+      </div>
+
+      {error && (
+        <p className="mensaje-error">
+          No se pudo consultar la bandeja de gestiones: {error}
+        </p>
+      )}
+
+      <section className="seccion">
+        <h2>Mis APPs favoritas</h2>
+        {favoritasVisibles.length === 0 ? (
+          <p className="nota">
+            Aún no tiene favoritas. Márquelas con la estrella ☆ en los mosaicos de cada módulo, o desde el menú del usuario → Acerca del APP.
+          </p>
+        ) : (
+          <div className="lp__fila">
+            {favoritasVisibles.map((a) => (
+              <TileApp key={a.id} tile={a.tile} />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

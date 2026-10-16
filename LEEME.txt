@@ -1,0 +1,29 @@
+ADMINISTRACION TRANSVERSAL - Core Bancario (2026-10-06)
+
+Contenido: Canal de origen del cliente, Monedas, Tipo de cambio (carga por gestion), Calendario de feriados,
+Parametros generales, Consulta de auditoria y Usuarios de integracion. Detalle en Administracion_Transversal.md.
+
+PASOS
+1. Respaldo de CoreBancario_DEV. En SSMS, con CoreBancario_DEV seleccionada, ejecutar scripts\administracion_transversal.sql
+   (re-ejecutable). Al final muestra: los 6 canales, las monedas (CRC base, USD), los parametros, los 8 permisos y
+   "clientes_sin_canal" = 0.
+2. Copiar la carpeta backend\ sobre backend\CoreBancario.Api\ (respetando subcarpetas Datos, Endpoints, Modelos y Program.cs).
+   Archivos nuevos: MonedaRepositorio, TipoCambioRepositorio, GestionRepositorio.TipoCambio, ParametroRepositorio,
+   FeriadoRepositorio, AuditoriaConsultaRepositorio, IntegracionRepositorio, AdminTransversalEndpoints, AdminTransversalModelos.
+   Los demas reemplazan a los existentes. Reiniciar: dotnet run.
+3. Copiar frontend\src\ sobre frontend\core-bancario-backoffice\src\. No hay dependencias nuevas. Recargar el navegador.
+4. Permisos: el rol ADMINISTRADOR_SEGURIDAD recibe los 8 permisos nuevos. Cierre sesion y vuelva a entrar con qa.arquitecto
+   para que aparezcan las opciones en Administracion. Para otros roles, asignelos en Administracion > Seguridad.
+
+PRUEBA SUGERIDA
+- Nuevo cliente: aparece "Canal de origen" (por defecto Sucursal); en la Consulta 360 se ve en Datos generales.
+- Monedas: ver CRC (base) y USD. Tipo de cambio: "Solicitar carga" de USD -> queda una gestion "Carga de tipo de cambio";
+  aprobarla (otro usuario, o con Gestiones:PermitirAutoaprobacion en DEV) -> aparece en "Vigentes hoy" y en el historial.
+- Feriados: crear uno (p. ej. 25/12 que se repite cada anio) y probar "Es habil?".
+- Parametros: cambiar DIAS_NO_HABILES a "DOM" y volver a "SAB,DOM".
+- Consulta de auditoria: filtrar por entidad TIPO_CAMBIO / PARAMETRO / MONEDA y ver los cambios con su usuario.
+- Usuarios de integracion: la lista estara vacia hasta que exista alguna cuenta de servicio en sec.USUARIO_INTEGRACION.
+
+NOTAS
+- "Canal de origen" es obligatorio en el wizard cuando existe la lista CANAL; si el script no se ha corrido, el combo no aparece.
+- Un alta por API sin canal asignado a su usuario de integracion se rechaza (asignelo en Usuarios de integracion).

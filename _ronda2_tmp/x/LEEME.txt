@@ -1,0 +1,35 @@
+MEJORAS RONDA 2  (2026-10-06)
+=============================
+CONTENIDO
+  scripts/mejoras_ronda2.sql    -> correr en CoreBancario_DEV (idempotente). HACER RESPALDO ANTES.
+  backend/                      -> copiar sobre backend_src/CoreBancario.Api (misma estructura de carpetas, incluye Program.cs)
+  frontend/src/                 -> copiar sobre core-bancario-backoffice/src
+  *.md                          -> documentos (ya subidos al Project)
+
+PASOS
+  1. Detener API y frontend.
+  2. Correr scripts/mejoras_ronda2.sql en SSMS / Azure Data Studio (CoreBancario_DEV). Al final muestra 3 filas de verificacion (2, 3 y 1).
+  3. Copiar backend/ y frontend/src/ sobre el codigo.
+  4. dotnet run (API) y npm run dev (frontend). Cerrar sesion y volver a entrar.
+
+QUE CAMBIA (los 11 puntos)
+  1. Canal de origen: siempre Sucursal, ya no se elige.
+  2. Direccion exacta en 3 lineas (la 1 obligatoria).
+  3. "Siguiente" en Direcciones ya avanza (la validacion no recibia la configuracion del pais).
+  3b. Gestiones: Aprobar / Rechazar / DEVOLVER dentro del detalle (clic en el numero de gestion). Devolver pide comentario y
+      vuelve al creador (bandeja + campanita); el creador usa "Corregir y reenviar".
+  4. Error 'dir[+1].nivel1_id no es editable': corregido (el patron no aceptaba digitos).
+  5. Sesion: causa raiz corregida (un interceptor por token pisaba el token vigente con uno vencido). Ahora hay uno solo.
+  6. Gestiones: ordenar (clic en encabezado) y filtrar por columna.
+  7. Tipo de cambio: compra / venta / VALOR CONTABLE (antes "referencia").
+  8. Tipo de cambio: ya no da "Error 400" (numeros validados y aceptados con coma o punto); boton "Ingreso de tipo de cambio".
+  9. Administracion se abre como launchpad (apps), igual que Interlocutores.
+  10. Dashboard: la caja de gestiones pendientes lleva a Gestiones.
+  11. Roles: permisos como arbol por categoria (expandir/contraer, casilla por categoria, busqueda).
+
+PRUEBAS SUGERIDAS
+  - Modificar un cliente: agregar una direccion (provincia/canton/distrito + 3 lineas) -> Siguiente -> enviar -> con otro usuario (o la
+    autoaprobacion DEV) aprobar: ya no debe dar error de nivel1_id.
+  - Devolver una gestion con comentario; entrar como el creador, abrirla (campanita) y "Corregir y reenviar".
+  - Tipo de cambio: Ingreso de tipo de cambio con "520,50" / "530,25" / contable "525,00".
+  - Dejar la app abierta trabajando >10 minutos: la sesion ya no debe vencer mientras haya actividad.

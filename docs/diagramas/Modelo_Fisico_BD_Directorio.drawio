@@ -1,0 +1,18 @@
+<mxfile host="app.diagrams.net" modified="2026-09-29T00:00:00.000Z" agent="claude" version="24.0.0" type="device">
+  <diagram name="Modelo Fisico - BD Directorio (Control-Plane Multi-Tenant)" id="diagram1">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="2200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="n2" value="dir.CLIENTE_SAAS" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=28;horizontalStack=0;resizeParent=0;resizeParentMax=0;collapsible=0;marginBottom=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;swimlaneFillColor=#ffffff;fontSize=13;" vertex="1" parent="1"><mxGeometry x="40" y="40" width="280" height="182" as="geometry" /></mxCell>
+        <mxCell id="n3" value="PK id_cliente_saas" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;portConstraint=eastwest;rotatable=0;points=[[0,0.5],[1,0.5]];whiteSpace=wrap;html=1;fontStyle=1;fontSize=12;" vertex="1" parent="n2"><mxGeometry y="28" width="280" height="22" as="geometry" /></mxCell>
+        <mxCell id="n4" value="codigo_cliente" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;portConstraint=eastwest;rotatable=0;points=[[0,0.5],[1,0.5]];whiteSpace=wrap;html=1;fontSize=12;" vertex="1" parent="n2"><mxGeometry y="50" width="280" height="22" as="geometry" /></mxCell>
+        <mxCell id="n5" value="nombre_base_datos" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;portConstraint=eastwest;rotatable=0;points=[[0,0.5],[1,0.5]];whiteSpace=wrap;html=1;fontSize=12;" vertex="1" parent="n2"><mxGeometry y="72" width="280" height="22" as="geometry" /></mxCell>
+        <mxCell id="n6" value="realm_iam" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;portConstraint=eastwest;rotatable=0;points=[[0,0.5],[1,0.5]];whiteSpace=wrap;html=1;fontSize=12;" vertex="1" parent="n2"><mxGeometry y="94" width="280" height="22" as="geometry" /></mxCell>
+        <mxCell id="n7" value="pais_principal" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;portConstraint=eastwest;rotatable=0;points=[[0,0.5],[1,0.5]];whiteSpace=wrap;html=1;fontSize=12;" vertex="1" parent="n2"><mxGeometry y="116" width="280" height="22" as="geometry" /></mxCell>
+        <mxCell id="n8" value="estado" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;portConstraint=eastwest;rotatable=0;points=[[0,0.5],[1,0.5]];whiteSpace=wrap;html=1;fontSize=12;" vertex="1" parent="n2"><mxGeometry y="138" width="280" height="22" as="geometry" /></mxCell>
+        <mxCell id="n9" value="fecha_alta" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=6;spacingRight=4;overflow=hidden;portConstraint=eastwest;rotatable=0;points=[[0,0.5],[1,0.5]];whiteSpace=wrap;html=1;fontSize=12;" vertex="1" parent="n2"><mxGeometry y="160" width="280" height="22" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

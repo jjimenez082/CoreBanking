@@ -13,3 +13,7 @@ dist/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Gestor documental (r44a): llave de pruebas y archivos cifrados; nunca al repositorio
+dev_documentos.key
+almacen_documentos/

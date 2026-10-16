@@ -1,0 +1,351 @@
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useApiClient } from "../api/useApiClient";
+import { usePermisos } from "../contexts/PermisosContext";
+import { TablaDatos, type ColumnaTabla } from "../components/TablaDatos";
+import { mensajeError } from "../api/mensajes";
+import type { GestionDetalleResponse, GestionResponse } from "../api/tipos";
+
+const PENDIENTE = "Pendiente de Aprobacion";
+const DEVUELTA = "Devuelta";
+
+const claseEstado = (e: string) =>
+  e === PENDIENTE ? "pendiente" : e === DEVUELTA ? "devuelta" : e === "Aplicada" ? "aplicada" : e === "Rechazada" ? "rechazada" : "";
+
+const textoEstado = (e: string) => (e === PENDIENTE ? "Pendiente de aprobación" : e);
+
+type Accion = "rechazar" | "devolver" | null;
+
+/**
+ * Bandeja de Gestiones: los cambios a datos de negocio se solicitan como gestión y se aplican al aprobarse.
+ * Se abre el detalle con el ID (o «Ver detalle»); dentro de la pantalla de visualización están las acciones:
+ * Aprobar (aplica el cambio), Rechazar (motivo) y Devolver (comentario: vuelve al solicitante para que lo corrija).
+ * Quien recibe una gestión devuelta ve «Corregir», que abre la edición con lo que ya había pedido.
+ * Las tablas se pueden ordenar (clic en el encabezado) y filtrar por columna.
+ */
+const num = (g: { numero?: string | null; idGestion: number }) => g.numero ?? String(g.idGestion);
+
+function textoRegistro(entidad: string, llave: string): string {
+  if (entidad === "INTERLOCUTOR") return `Cliente N.º ${llave}`;
+  return `${entidad}${llave ? ` #${llave}` : ""}`;
+}
+
+/** dd/mm/yyyy hh:mm:ss en hora local; el servidor guarda UTC sin zona. */
+function fmtFechaHora(s?: string | null): string {
+  if (!s) return "";
+  const d = new Date(/(Z|[+-]\d\d:?\d\d)$/.test(s) ? s : `${s}Z`);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+export function GestionesPage() {
+  const api = useApiClient();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  // Pantalla de origen (notificaciones, campanita): al cerrar el detalle se vuelve ahi.
+  const [volverA, setVolverA] = useState<string | null>(null);
+  const { tienePermiso } = usePermisos();
+  const puedeAprobar = tienePermiso("GES_APROBAR");
+
+  const [gestiones, setGestiones] = useState<GestionResponse[]>([]);
+  const [verTodas, setVerTodas] = useState(false);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [seleccion, setSeleccion] = useState<Set<string | number>>(new Set());
+
+  const [detalle, setDetalle] = useState<GestionDetalleResponse | null>(null);
+  const [errorDetalle, setErrorDetalle] = useState<string | null>(null);
+  const [accion, setAccion] = useState<Accion>(null);
+  const [texto, setTexto] = useState("");
+  const [procesando, setProcesando] = useState(false);
+
+  async function cargar() {
+    setCargando(true);
+    setError(null);
+    try {
+      const r = await api.get<GestionResponse[]>("/api/gestiones", { params: { estado: verTodas ? "todas" : "pendientes" } });
+      setGestiones(r.data);
+      setSeleccion(new Set());
+    } catch (err) {
+      setError(mensajeError(err, "Error inesperado al cargar las gestiones."));
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  useEffect(() => {
+    void cargar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verTodas]);
+
+  async function verDetalle(id: number) {
+    setError(null);
+    setAviso(null);
+    setErrorDetalle(null);
+    setAccion(null);
+    setTexto("");
+    try {
+      const r = await api.get<GestionDetalleResponse>(`/api/gestiones/${id}`);
+      setDetalle(r.data);
+    } catch (err) {
+      setError(mensajeError(err, "No se pudo cargar la gestión."));
+    }
+  }
+
+  // ?ver=N (desde la campanita y los enlaces): abre el detalle directamente.
+  useEffect(() => {
+    const ver = params.get("ver");
+    if (ver) {
+      const origen = (location.state as { volverA?: string } | null)?.volverA;
+      setVolverA(origen ?? null);
+      void verDetalle(Number(ver));
+      setParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
+
+  function cerrarYVolver() {
+    cerrar();
+    if (volverA) {
+      const destino = volverA;
+      setVolverA(null);
+      navigate(destino);
+    }
+  }
+
+  function cerrar() {
+    setDetalle(null);
+    setAccion(null);
+    setTexto("");
+    setErrorDetalle(null);
+  }
+
+  async function ejecutar(ruta: "aprobar" | "rechazar" | "devolver", cuerpo?: object, mensajeOk?: string) {
+    if (!detalle) return;
+    setProcesando(true);
+    setErrorDetalle(null);
+    try {
+      await api.post(`/api/gestiones/${detalle.idGestion}/${ruta}`, cuerpo);
+      setAviso(mensajeOk ?? `Gestión ${num(detalle)} resuelta.`);
+      cerrar();
+      await cargar();
+    } catch (err) {
+      setErrorDetalle(mensajeError(err, "Error inesperado al procesar la gestión."));
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+  function corregir(d: GestionDetalleResponse) {
+    if (d.entidadNegocio === "INTERLOCUTOR") navigate(`/interlocutores/clientes/${d.llaveCruda}/modificar?gestion=${d.idGestion}`);
+    else if (d.entidadNegocio === "TIPO_CAMBIO") navigate(`/tipo-cambio?corregir=${d.idGestion}`);
+  }
+
+  const columnas: ColumnaTabla<GestionResponse>[] = useMemo(() => [
+    {
+      clave: "id", encabezado: "N.º",
+      render: (g) => (<button type="button" className="boton-enlace-id" onClick={() => void verDetalle(g.idGestion)}>{num(g)}</button>),
+      textoBusqueda: (g) => num(g), valorOrden: (g) => g.idGestion,
+    },
+    { clave: "tipo", encabezado: "Tipo", render: (g) => g.tipoGestion, textoBusqueda: (g) => g.tipoGestion, filtroLista: true },
+    {
+      clave: "entidad", encabezado: "Registro",
+      render: (g) => textoRegistro(g.entidadNegocio, g.llaveRegistro),
+      textoBusqueda: (g) => textoRegistro(g.entidadNegocio, g.llaveRegistro),
+    },
+    {
+      clave: "estado", encabezado: "Estado",
+      render: (g) => <span className={`estado-gestion estado-gestion--${claseEstado(g.estado)}`}>{textoEstado(g.estado)}</span>,
+      textoBusqueda: (g) => textoEstado(g.estado), filtroLista: true,
+    },
+    { clave: "solicitante", encabezado: "Ingresó", render: (g) => g.solicitadoPor, textoBusqueda: (g) => g.solicitadoPor, filtroLista: true },
+    {
+      clave: "resolvio", encabezado: "Resolvió",
+      render: (g) => (g.resolucionTipo ? `${g.resolucionTipo}: ${g.resueltaPor ?? "Sistema"}` : "—"),
+      textoBusqueda: (g) => (g.resolucionTipo ? `${g.resolucionTipo} ${g.resueltaPor ?? "Sistema"}` : ""),
+    },
+    {
+      clave: "nivel", encabezado: "Nivel",
+      render: (g) => ((g.nivelesRequeridos ?? 1) > 1 || g.pendienteDe
+        ? `${g.nivelActual ?? 1} de ${g.nivelesRequeridos ?? 1}${g.pendienteDe ? ` · ${g.pendienteDe}` : ""}`
+        : "—"),
+      textoBusqueda: (g) => g.pendienteDe ?? "",
+    },
+    {
+      clave: "correccion", encabezado: "Corrección",
+      render: (g) => (g.numeroCorreccion > 0
+        ? <span className={g.numeroCorreccion >= 2 ? "estado-gestion estado-gestion--devuelta" : undefined} title={g.idGestionOrigen ? `Corrige la gestión ${g.numeroOrigen ?? g.idGestionOrigen}` : undefined}>n.º {g.numeroCorreccion}</span>
+        : "—"),
+      textoBusqueda: (g) => (g.numeroCorreccion > 0 ? String(g.numeroCorreccion) : ""), valorOrden: (g) => g.numeroCorreccion,
+    },
+    {
+      clave: "fecha", encabezado: "Fecha", render: (g) => new Date(g.creadoEn).toLocaleString(),
+      textoBusqueda: (g) => new Date(g.creadoEn).toLocaleString(), valorOrden: (g) => new Date(g.creadoEn).getTime(),
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], []);
+
+  const idSeleccionada = seleccion.size === 1 ? Number(Array.from(seleccion)[0]) : null;
+  const puedeResolver = !!detalle?.puedeResolver && puedeAprobar;
+  const puedeCorregir = !!detalle && detalle.estado === DEVUELTA && detalle.esMia;
+
+  return (
+    <div>
+      <h1>Gestiones</h1>
+      <p className="nota">
+        Los cambios a datos de negocio se solicitan como gestión y se aplican al aprobarse. Abra una gestión con su número (o márquela y use
+        «Ver detalle») para aprobarla, rechazarla o devolverla al solicitante. Puede ordenar y filtrar por columna.
+      </p>
+
+      {error && <p className="mensaje-error">{error}</p>}
+      {aviso && <p className="mensaje-exito">{aviso}</p>}
+
+      <TablaDatos
+        columnas={columnas}
+        filas={gestiones}
+        claveFila={(g) => g.idGestion}
+        seleccion={seleccion}
+        onCambiarSeleccion={setSeleccion}
+        cargando={cargando}
+        filtrosPorColumna
+        mensajeVacio={verTodas ? "No hay gestiones." : "No hay gestiones pendientes en este momento."}
+        placeholderBusqueda="Buscar gestión"
+        comandos={[
+          { clave: "detalle", etiqueta: "Ver detalle", icono: "👁", requiereSeleccion: "una", onClick: () => idSeleccionada !== null && void verDetalle(idSeleccionada) },
+          { clave: "filtro", etiqueta: verTodas ? "Ver solo pendientes" : "Ver todas", icono: "⇄", onClick: () => setVerTodas((v) => !v) },
+          { clave: "actualizar", etiqueta: "Actualizar", icono: "↻", onClick: () => void cargar() },
+        ]}
+      />
+
+      {detalle && (
+        <div className="gestion-modal" role="dialog" aria-modal="true" aria-label={`Gestión ${detalle.idGestion}`}>
+          <div className="gestion-modal__caja">
+            <h3>Gestión {num(detalle)} — {detalle.tipoGestion}</h3>
+            {errorDetalle && <p className="mensaje-error" style={{ whiteSpace: "pre-line" }}>{errorDetalle}</p>}
+            <dl className="ficha">
+              <dt>Registro</dt>
+              <dd>
+                {detalle.entidadNegocio === "INTERLOCUTOR" && detalle.llaveCruda
+                  ? <button type="button" className="boton-enlace-id" title="Abrir la vista 360°" onClick={() => navigate(`/interlocutores/${detalle.llaveCruda}`)}>{textoRegistro(detalle.entidadNegocio, detalle.llaveRegistro)}</button>
+                  : textoRegistro(detalle.entidadNegocio, detalle.llaveRegistro)}
+              </dd>
+              <dt>Estado</dt>
+              <dd><span className={`estado-gestion estado-gestion--${claseEstado(detalle.estado)}`}>{textoEstado(detalle.estado)}</span></dd>
+              <dt>Ingresada por</dt>
+              <dd>{detalle.solicitadoPor} el {fmtFechaHora(detalle.creadoEn)}</dd>
+              {detalle.regla && (
+                <>
+                  <dt>Regla aplicada</dt>
+                  <dd>{detalle.regla}</dd>
+                </>
+              )}
+              {detalle.niveles && detalle.niveles.length > 0 && (
+                <>
+                  <dt>Niveles de aprobación</dt>
+                  <dd>
+                    <ol className="gestion-niveles">
+                      {detalle.niveles.map((n) => {
+                        const resuelto = n.estado === "Aprobado" || n.estado === "Rechazado" || n.estado === "Devuelto";
+                        const quien = n.tipo === "AUTOMATICA" ? "Automática (sistema)" : (resuelto ? n.aprobador : null) ?? n.asignado ?? "Cualquier aprobador";
+                        const texto = n.estado === "Aprobado" ? "Aprobó" : n.estado === "Rechazado" ? "Rechazó" : n.estado === "Devuelto" ? "Devolvió"
+                          : n.estado === "Omitido" ? "Omitido" : "Pendiente";
+                        return (
+                          <li key={n.nivel}>
+                            <strong>Nivel {n.nivel}</strong> · {quien} · {texto}
+                            {resuelto && n.fecha ? ` · ${fmtFechaHora(n.fecha)}` : ""}
+                            {n.comentario ? ` — ${n.comentario}` : ""}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </dd>
+                </>
+              )}
+              {detalle.numeroCorreccion > 0 && (
+                <>
+                  <dt>Corrección</dt>
+                  <dd>
+                    N.º {detalle.numeroCorreccion}
+                    {detalle.numeroCorreccion >= 2 && <> — <strong>ya fue devuelta {detalle.numeroCorreccion} veces</strong></>}
+                  </dd>
+                </>
+              )}
+              {detalle.idGestionOrigen && (
+                <>
+                  <dt>Corrige la gestión</dt>
+                  <dd><button type="button" className="boton-enlace-id" onClick={() => void verDetalle(detalle.idGestionOrigen!)}>{detalle.numeroOrigen ?? detalle.idGestionOrigen}</button></dd>
+                </>
+              )}
+              {detalle.idGestionCorreccion && (
+                <>
+                  <dt>Corregida por la gestión</dt>
+                  <dd><button type="button" className="boton-enlace-id" onClick={() => void verDetalle(detalle.idGestionCorreccion!)}>{detalle.numeroCorreccionRef ?? detalle.idGestionCorreccion}</button></dd>
+                </>
+              )}
+              {detalle.comentario && (<><dt>Comentario</dt><dd>{detalle.comentario}</dd></>)}
+              {detalle.fechaResolucion && (<><dt>Resuelta</dt><dd>{fmtFechaHora(detalle.fechaResolucion)}</dd></>)}
+              {detalle.motivoRechazo && (<><dt>Motivo del rechazo</dt><dd>{detalle.motivoRechazo}</dd></>)}
+            </dl>
+
+            {detalle.comentarioDevolucion && (
+              <div className="gestion-modal__devolucion">
+                <strong>Comentario de la devolución:</strong>{" "}
+                {detalle.comentarioDevolucion}
+              </div>
+            )}
+
+            <table className="tabla">
+              <thead><tr><th>Campo</th><th>Valor anterior</th><th>Valor nuevo</th></tr></thead>
+              <tbody>
+                {detalle.campos.map((c) => (
+                  <tr key={c.nombreCampo}>
+                    <td>{c.etiqueta}</td>
+                    <td>{c.valorAnterior ?? "—"}</td>
+                    <td><strong>{c.valorNuevo ?? "—"}</strong></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {accion && puedeResolver && (
+              <div className="formulario-en-linea" style={{ marginTop: "1rem" }}>
+                <input
+                  type="text" autoFocus maxLength={1000}
+                  placeholder={accion === "rechazar" ? "Motivo del rechazo (obligatorio)" : "Qué debe corregir o aclarar el solicitante (obligatorio)"}
+                  value={texto} onChange={(e) => setTexto(e.target.value)}
+                />
+                <button
+                  type="button" disabled={procesando || texto.trim() === ""}
+                  onClick={() => accion === "rechazar"
+                    ? void ejecutar("rechazar", { motivo: texto }, `Gestión ${num(detalle)} rechazada.`)
+                    : void ejecutar("devolver", { comentario: texto }, `Gestión ${num(detalle)} devuelta al solicitante.`)}
+                >
+                  {accion === "rechazar" ? "Confirmar rechazo" : "Confirmar devolución"}
+                </button>
+                <button type="button" className="boton-secundario" onClick={() => { setAccion(null); setTexto(""); }}>Cancelar</button>
+              </div>
+            )}
+
+            <div className="gestion-modal__acciones">
+              {puedeResolver && !accion && (
+                <>
+                  <button type="button" disabled={procesando}
+                    onClick={() => window.confirm(`¿Aprobar la gestión ${num(detalle)}? El cambio se aplicará de inmediato.`)
+                      && void ejecutar("aprobar", undefined, `Gestión ${num(detalle)} aprobada y aplicada.`)}>
+                    ✓ Aprobar
+                  </button>
+                  <button type="button" className="boton-aviso" disabled={procesando} onClick={() => { setAccion("devolver"); setTexto(""); }}>↩ Devolver</button>
+                  <button type="button" className="boton-peligro" disabled={procesando} onClick={() => { setAccion("rechazar"); setTexto(""); }}>✕ Rechazar</button>
+                </>
+              )}
+              {puedeCorregir && (<button type="button" onClick={() => corregir(detalle)}>✎ Corregir y reenviar</button>)}
+              <button type="button" className="boton-secundario" onClick={cerrarYVolver} style={{ marginLeft: "auto" }}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
