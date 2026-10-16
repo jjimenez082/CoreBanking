@@ -11,6 +11,12 @@ public partial class GestionRepositorio
 {
     public const string EntidadTipoCambio = TipoCambioRepositorio.Entidad;
 
+    private static readonly Dictionary<string, string> EtiquetasCreditos = new()
+    {
+        ["id_indicador"] = "Indicador", ["fecha_vigencia"] = "Vigente desde", ["valor"] = "Valor (%)",
+        ["id_version"] = "Version", ["producto"] = "Producto comercial", ["conjunto"] = "Conjunto de reglas", ["numero_version"] = "Numero de version", ["fecha_vigencia_desde"] = "Vigente desde",
+    };
+
     private static readonly Dictionary<string, string> EtiquetasTipoCambio = new()
     {
         ["id_moneda"] = "Moneda", ["fecha_vigencia"] = "Vigente desde", ["compra"] = "Compra", ["venta"] = "Venta", ["contable"] = "Valor contable",

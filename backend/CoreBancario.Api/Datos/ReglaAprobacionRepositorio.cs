@@ -27,11 +27,13 @@ public class ReglaAprobacionRepositorio
         var f = await c.QueryAsync(
             """
             SELECT t.id_tipo_gestion, t.codigo, t.nombre, t.categoria, t.permite_mismo_usuario_multiples_niveles AS repetir,
+                   ISNULL(e.codigo, N'GENERAL') AS ent_codigo, ISNULL(e.nombre, N'General') AS ent_nombre, ISNULL(e.orden, 99) AS ent_orden,
                    (SELECT COUNT(*) FROM apr.REGLA_APROBACION r WHERE r.id_tipo_gestion = t.id_tipo_gestion AND r.id_compania = @c AND r.estado = 'Activo') AS activas,
                    (SELECT COUNT(*) FROM apr.REGLA_APROBACION r WHERE r.id_tipo_gestion = t.id_tipo_gestion AND r.id_compania = @c) AS total
-            FROM apr.TIPO_GESTION t WHERE t.estado = 'Activo' ORDER BY t.categoria, t.nombre
+            FROM apr.TIPO_GESTION t LEFT JOIN gen.LISTA_VALORES_ITEM e ON e.id_lista_valores_item = t.id_entidad
+            WHERE t.estado = 'Activo' ORDER BY ISNULL(e.orden, 99), t.nombre
             """, new { c = idCompania });
-        return f.Select(x => new TipoGestionAdminResponse((long)x.id_tipo_gestion, (string)x.codigo, (string)x.nombre, (string)x.categoria, (bool)x.repetir, (int)x.activas, (int)x.total)).ToList();
+        return f.Select(x => new TipoGestionAdminResponse((long)x.id_tipo_gestion, (string)x.codigo, (string)x.nombre, (string)x.categoria, (bool)x.repetir, (int)x.activas, (int)x.total, (string)x.ent_codigo, (string)x.ent_nombre, (int)x.ent_orden)).ToList();
     }
 
     public async Task<ResultadoOperacion> CambiarPermiteRepetirAsync(ActorContext actor, long idTipo, bool valor)

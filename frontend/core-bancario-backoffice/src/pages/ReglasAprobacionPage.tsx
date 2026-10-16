@@ -1,5 +1,5 @@
 import { PanelModal } from "../components/VentanaModal";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { isAxiosError } from "axios";
 import { useApiClient } from "../api/useApiClient";
 import type {
@@ -62,11 +62,21 @@ export function ReglasAprobacionPage() {
   const [sim, setSim] = useState<{ idUsuario: number; canal: string; resultado: SimulacionResultado | null; error: string | null } | null>(null);
 
   const tipo = tipos.find((t) => t.idTipoGestion === idTipo) ?? null;
+  const entidades = useMemo(() => {
+    const m = new Map<string, { codigo: string; nombre: string; orden: number; tipos: number; activas: number; sinReglas: number }>();
+    for (const t of tipos) {
+      const e = m.get(t.entidadCodigo) ?? { codigo: t.entidadCodigo, nombre: t.entidadNombre, orden: t.entidadOrden, tipos: 0, activas: 0, sinReglas: 0 };
+      e.tipos++; e.activas += t.reglasActivas; if (t.reglasActivas === 0) e.sinReglas++;
+      m.set(t.entidadCodigo, e);
+    }
+    return Array.from(m.values()).sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre));
+  }, [tipos]);
 
   const cargarTipos = useCallback(async () => {
     try {
       const r = await api.get<TipoGestionAdmin[]>("/api/aprobacion/tipos");
-      setTipos(r.data);
+      // Si el backend aún no devuelve la entidad (no reiniciado), se agrupa como General en lugar de dejar el combo vacío.
+      setTipos(r.data.map((t) => ({ ...t, entidadCodigo: t.entidadCodigo ?? "GENERAL", entidadNombre: t.entidadNombre ?? "General", entidadOrden: t.entidadOrden ?? 99 })));
       setIdTipo((actual) => actual || r.data[0]?.idTipoGestion || 0);
     } catch (e) { setError(mensaje(e, "No se pudieron cargar los tipos de gestión.")); }
   }, [api]);
@@ -219,10 +229,19 @@ export function ReglasAprobacionPage() {
       {exito && <p className="mensaje-exito">{exito}</p>}
 
       <div className="formulario" style={{ maxWidth: "46rem" }}>
+        <label>Entidad
+          <select value={tipo?.entidadCodigo ?? ""} onChange={(e) => { const primero = tipos.find((t) => t.entidadCodigo === e.target.value); if (primero) setIdTipo(primero.idTipoGestion); }}>
+            {entidades.map((en) => (
+              <option key={en.codigo} value={en.codigo}>
+                {en.nombre} · {en.tipos} tipo{en.tipos === 1 ? "" : "s"} · {en.activas} regla{en.activas === 1 ? "" : "s"} activa{en.activas === 1 ? "" : "s"}{en.sinReglas > 0 ? ` · ⚠ ${en.sinReglas} sin reglas` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
         <label>Tipo de gestión
           <select value={idTipo} onChange={(e) => setIdTipo(Number(e.target.value))}>
-            {tipos.map((t) => (
-              <option key={t.idTipoGestion} value={t.idTipoGestion}>{t.nombre} ({t.reglasActivas} activa{t.reglasActivas === 1 ? "" : "s"})</option>
+            {tipos.filter((t) => t.entidadCodigo === tipo?.entidadCodigo).map((t) => (
+              <option key={t.idTipoGestion} value={t.idTipoGestion}>{t.reglasActivas === 0 ? "⚠ " : ""}{t.nombre} ({t.reglasActivas} activa{t.reglasActivas === 1 ? "" : "s"})</option>
             ))}
           </select>
         </label>

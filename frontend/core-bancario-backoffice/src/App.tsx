@@ -40,6 +40,18 @@ import { PerfilesDatosPage } from "./pages/PerfilesDatosPage";
 import { DocumentosAdminPage } from "./pages/DocumentosAdminPage";
 import { TipoCambioPage } from "./pages/TipoCambioPage";
 import { FeriadosPage } from "./pages/FeriadosPage";
+import { PricingStudioInicioPage } from "./pages/PricingStudioInicioPage";
+import { ReglasInicioPage } from "./pages/ReglasInicioPage";
+import { ReglasCondicionesPage } from "./pages/ReglasCondicionesPage";
+import { ReglasAccionesPage } from "./pages/ReglasAccionesPage";
+import { ReglasConjuntosPage } from "./pages/ReglasConjuntosPage";
+import { ReglasEvaluacionesPage } from "./pages/ReglasEvaluacionesPage";
+import { IndicadoresPage } from "./pages/IndicadoresPage";
+import { CalendariosPage } from "./pages/CalendariosPage";
+import { BasesCalculoPage } from "./pages/BasesCalculoPage";
+import { CategoriasRegulatoriasPage } from "./pages/CategoriasRegulatoriasPage";
+import { ProductosOperativosPage } from "./pages/ProductosOperativosPage";
+import { ProductosComercialesPage } from "./pages/ProductosComercialesPage";
 import { ParametrosPage } from "./pages/ParametrosPage";
 import { ConsentimientosClientePage } from "./pages/ConsentimientosClientePage";
 import { RestriccionesBloqueoPage } from "./pages/RestriccionesBloqueoPage";
@@ -68,6 +80,18 @@ function App() {
             <Route path="/documentos" element={<DocumentosInicioPage />} />
             <Route path="/documentos/expediente" element={<GestorDocumentalPage />} />
             <Route path="/documentos/cargar" element={<CargarDocumentosPage />} />
+            <Route path="/pricing-studio" element={<PricingStudioInicioPage />} />
+            <Route path="/pricing-studio/productos-operativos" element={<ProductosOperativosPage />} />
+            <Route path="/pricing-studio/productos-comerciales" element={<ProductosComercialesPage />} />
+            <Route path="/pricing-studio/indicadores" element={<IndicadoresPage />} />
+            <Route path="/calendarios" element={<CalendariosPage />} />
+            <Route path="/pricing-studio/bases-calculo" element={<BasesCalculoPage />} />
+            <Route path="/pricing-studio/categorias-regulatorias" element={<CategoriasRegulatoriasPage />} />
+            <Route path="/reglas" element={<ReglasInicioPage />} />
+            <Route path="/reglas/condiciones" element={<ReglasCondicionesPage />} />
+            <Route path="/reglas/acciones" element={<ReglasAccionesPage />} />
+            <Route path="/reglas/conjuntos" element={<ReglasConjuntosPage />} />
+            <Route path="/reglas/evaluaciones" element={<ReglasEvaluacionesPage />} />
             <Route path="/gestiones" element={<GestionesRuta />} />
             <Route path="/gestiones/consulta" element={<GestionesPage modo="consulta" />} />
             <Route path="/gestiones/aprobacion" element={<GestionesPage modo="aprobacion" />} />

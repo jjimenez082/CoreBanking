@@ -40,6 +40,7 @@ export const ZONAS_ADMINISTRACION: Zona[] = [
     tiles: [
       { titulo: "Monedas", sub: "Moneda base y decimales", icono: "¤", permiso: "MON_ADMINISTRACION", ruta: "/monedas" },
       { titulo: "Tipo de cambio", sub: "Compra, venta y valor contable", icono: "⇅", permiso: "TC_CONSULTA", ruta: "/tipo-cambio" },
+      { titulo: "Calendarios", sub: "Días hábiles y país de feriados", icono: "▦", permiso: "PRD_CONSULTA", ruta: "/calendarios" },
       { titulo: "Calendario de feriados", sub: "Días hábiles por país", icono: "▦", permiso: "CAL_ADMINISTRACION", ruta: "/feriados" },
     ],
   },

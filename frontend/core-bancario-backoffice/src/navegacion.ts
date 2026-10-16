@@ -32,6 +32,8 @@ export function esGrupo(entrada: EntradaNavegacion): entrada is GrupoNavegacion 
 export const NAVEGACION: EntradaNavegacion[] = [
   { ruta: "/", etiqueta: "Dashboard", icono: "▤" },
   { ruta: "/interlocutores", etiqueta: "Interlocutores", icono: "◐", permiso: "CLI_CONSULTA" },
+  { ruta: "/pricing-studio", etiqueta: "Pricing Studio", icono: "◈", permiso: "PRD_CONSULTA" },
+  { ruta: "/reglas", etiqueta: "Motor de reglas", icono: "☰", permiso: "RUL_CONSULTA" },
   { ruta: "/gestiones", etiqueta: "Gestiones", icono: "☑" },
   { ruta: "/documentos", etiqueta: "Gestor documental", icono: "▥", permiso: "DOC_VER" },
   { ruta: "/administracion", etiqueta: "Administración", icono: "⚙", permisosAlguno: PERMISOS_ADMINISTRACION },

@@ -61,6 +61,12 @@ public partial class GestionRepositorio
                      THEN ISNULL((SELECT m.codigo FROM gen.MONEDA m WHERE CONVERT(nvarchar(30), m.id_moneda) = LEFT(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') - 1)), '?') + ' ' + SUBSTRING(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') + 1, 20)
                      WHEN g.entidad_negocio IN ('INTERLOCUTOR', 'INTERLOCUTOR_ALTA', 'INTERLOCUTOR_FUSION', 'INTERLOCUTOR_ROL', 'INTERLOCUTOR_RELACION', 'INTERLOCUTOR_KYC', 'INTERLOCUTOR_BLOQUEO', 'INTERLOCUTOR_CONSENTIMIENTO', 'INTERLOCUTOR_DOCUMENTO', 'INTERLOCUTOR_FALLECIMIENTO') AND g.llave_registro NOT LIKE 'ALTA-%'
                      THEN ISNULL((SELECT i.numero FROM cli.INTERLOCUTOR i WHERE i.id_compania = g.id_compania AND CONVERT(nvarchar(100), i.id_interlocutor) = LEFT(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') - 1)), g.llave_registro)
+                     WHEN g.entidad_negocio = 'INDICADOR_VALOR'
+                     THEN ISNULL((SELECT i.codigo FROM gen.INDICADOR_FINANCIERO i WHERE CONVERT(nvarchar(30), i.id_indicador_financiero) = LEFT(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') - 1)), '?') + ' ' + SUBSTRING(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') + 1, 20)
+                     WHEN g.entidad_negocio = 'PRODUCTO_VERSION'
+                     THEN ISNULL((SELECT k.codigo + ' v' + CONVERT(nvarchar(10), v.numero_version) FROM prd.PRODUCTO_COMERCIAL_VERSION v JOIN prd.PRODUCTO_COMERCIAL k ON k.id_producto_comercial = v.id_producto_comercial WHERE CONVERT(nvarchar(30), v.id_version) = g.llave_registro), g.llave_registro)
+                     WHEN g.entidad_negocio = 'CONJUNTO_VERSION'
+                     THEN ISNULL((SELECT j.codigo + ' v' + CONVERT(nvarchar(10), v.numero_version) FROM rul.CONJUNTO_REGLAS_VERSION v JOIN rul.CONJUNTO_REGLAS j ON j.id_conjunto = v.id_conjunto WHERE CONVERT(nvarchar(30), v.id_version) = g.llave_registro), g.llave_registro)
                      WHEN g.llave_registro LIKE 'ALTA-%'
                      THEN 'Nuevo: ' + ISNULL((SELECT d.valor_nuevo FROM apr.GESTION_DETALLE d WHERE d.id_gestion = g.id_gestion AND d.nombre_campo = 'razon_social'), LTRIM(ISNULL((SELECT d.valor_nuevo FROM apr.GESTION_DETALLE d WHERE d.id_gestion = g.id_gestion AND d.nombre_campo = 'nombre1'), '') + ' ' + ISNULL((SELECT d.valor_nuevo FROM apr.GESTION_DETALLE d WHERE d.id_gestion = g.id_gestion AND d.nombre_campo = 'apellido1'), '')))
                      ELSE ISNULL(g.llave_registro, '') END AS llave_registro,
@@ -122,6 +128,12 @@ public partial class GestionRepositorio
                      THEN ISNULL((SELECT m.codigo FROM gen.MONEDA m WHERE CONVERT(nvarchar(30), m.id_moneda) = LEFT(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') - 1)), '?') + ' ' + SUBSTRING(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') + 1, 20)
                      WHEN g.entidad_negocio IN ('INTERLOCUTOR', 'INTERLOCUTOR_ALTA', 'INTERLOCUTOR_FUSION', 'INTERLOCUTOR_ROL', 'INTERLOCUTOR_RELACION', 'INTERLOCUTOR_KYC', 'INTERLOCUTOR_BLOQUEO', 'INTERLOCUTOR_CONSENTIMIENTO', 'INTERLOCUTOR_DOCUMENTO', 'INTERLOCUTOR_FALLECIMIENTO') AND g.llave_registro NOT LIKE 'ALTA-%'
                      THEN ISNULL((SELECT i.numero FROM cli.INTERLOCUTOR i WHERE i.id_compania = g.id_compania AND CONVERT(nvarchar(100), i.id_interlocutor) = LEFT(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') - 1)), g.llave_registro)
+                     WHEN g.entidad_negocio = 'INDICADOR_VALOR'
+                     THEN ISNULL((SELECT i.codigo FROM gen.INDICADOR_FINANCIERO i WHERE CONVERT(nvarchar(30), i.id_indicador_financiero) = LEFT(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') - 1)), '?') + ' ' + SUBSTRING(g.llave_registro, CHARINDEX('|', g.llave_registro + '|') + 1, 20)
+                     WHEN g.entidad_negocio = 'PRODUCTO_VERSION'
+                     THEN ISNULL((SELECT k.codigo + ' v' + CONVERT(nvarchar(10), v.numero_version) FROM prd.PRODUCTO_COMERCIAL_VERSION v JOIN prd.PRODUCTO_COMERCIAL k ON k.id_producto_comercial = v.id_producto_comercial WHERE CONVERT(nvarchar(30), v.id_version) = g.llave_registro), g.llave_registro)
+                     WHEN g.entidad_negocio = 'CONJUNTO_VERSION'
+                     THEN ISNULL((SELECT j.codigo + ' v' + CONVERT(nvarchar(10), v.numero_version) FROM rul.CONJUNTO_REGLAS_VERSION v JOIN rul.CONJUNTO_REGLAS j ON j.id_conjunto = v.id_conjunto WHERE CONVERT(nvarchar(30), v.id_version) = g.llave_registro), g.llave_registro)
                      WHEN g.llave_registro LIKE 'ALTA-%'
                      THEN 'Nuevo: ' + ISNULL((SELECT d.valor_nuevo FROM apr.GESTION_DETALLE d WHERE d.id_gestion = g.id_gestion AND d.nombre_campo = 'razon_social'), LTRIM(ISNULL((SELECT d.valor_nuevo FROM apr.GESTION_DETALLE d WHERE d.id_gestion = g.id_gestion AND d.nombre_campo = 'nombre1'), '') + ' ' + ISNULL((SELECT d.valor_nuevo FROM apr.GESTION_DETALLE d WHERE d.id_gestion = g.id_gestion AND d.nombre_campo = 'apellido1'), '')))
                      WHEN g.llave_registro LIKE 'ALTA-%'
@@ -173,6 +185,8 @@ public partial class GestionRepositorio
             "SELECT id_departamento AS id, nombre FROM sec.DEPARTAMENTO")).ToDictionary(x => (long)x.id, x => (string)x.nombre);
 
         var tipoCambio = (string)g.entidad_negocio == EntidadTipoCambio;
+        var entidadGestion = (string)g.entidad_negocio;
+        Dictionary<string, string>? etiquetasCreditos = (entidadGestion == CatalogoFinancieroRepositorio.EntidadValor || entidadGestion == ProductoRepositorio.EntidadVersion || entidadGestion == ReglasRepositorio.EntidadVersion) ? EtiquetasCreditos : null;
         var monedas = (await conexion.QueryAsync("SELECT id_moneda AS id, codigo + ' · ' + nombre AS nombre FROM gen.MONEDA")).ToDictionary(x => (long)x.id, x => (string)x.nombre);
 
         var esMia = !actor.EsIntegracion && (long)g.id_solicitante == actor.IdUsuario;
@@ -197,6 +211,8 @@ public partial class GestionRepositorio
                 string? Mon(string? v) => v is not null && campo == "id_moneda" && long.TryParse(v, out var im) && monedas.TryGetValue(im, out var nm) ? nm : v;
                 return new GestionCampoResponse(campo, EtiquetasTipoCambio.GetValueOrDefault(campo, campo), Mon((string?)d.valor_anterior), Mon((string?)d.valor_nuevo), (string?)d.valor_anterior, (string?)d.valor_nuevo);
             }
+            if (etiquetasCreditos is not null)
+                return new GestionCampoResponse(campo, etiquetasCreditos.GetValueOrDefault(campo, campo), (string?)d.valor_anterior, (string?)d.valor_nuevo, (string?)d.valor_anterior, (string?)d.valor_nuevo);
             return new GestionCampoResponse(
                 campo, EtiquetaCampo(campo),
                 TextoCampo(campo, (string?)d.valor_anterior, items, paises, divisiones, unidades, monedas),
@@ -438,6 +454,15 @@ public partial class GestionRepositorio
                 break;
             case EntidadTipoCambio:
                 error = await AplicarTipoCambioAsync(conexion, tx, actor, idGestion);
+                break;
+            case CatalogoFinancieroRepositorio.EntidadValor:
+                error = await CatalogoFinancieroRepositorio.AplicarValorAsync(conexion, tx, actor, idGestion);
+                break;
+            case ProductoRepositorio.EntidadVersion:
+                error = await ProductoRepositorio.AplicarPublicacionAsync(conexion, tx, actor, idGestion);
+                break;
+            case ReglasRepositorio.EntidadVersion:
+                error = await ReglasRepositorio.AplicarPublicacionAsync(conexion, tx, actor, idGestion);
                 break;
             case EntidadAlta:
                 error = await AplicarAltaInterlocutorAsync(conexion, tx, actor, idGestion, creadoPor, siguienteNumero);

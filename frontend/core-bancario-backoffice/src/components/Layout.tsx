@@ -9,7 +9,7 @@ import { SesionGuardian } from "./SesionGuardian";
 import { usePermisos } from "../contexts/PermisosContext";
 import { NAVEGACION, esGrupo, permitido, type ItemNavegacion } from "../navegacion";
 import { ZONAS_ADMINISTRACION } from "../zonasAdministracion";
-import { ZONAS_GESTIONES } from "../aplicaciones";
+import { ZONAS_PRICING, ZONAS_GESTIONES, ZONAS_REGLAS } from "../aplicaciones";
 
 export function Layout({ children }: PropsWithChildren) {
   const location = useLocation();
@@ -34,6 +34,14 @@ export function Layout({ children }: PropsWithChildren) {
   } else if (ruta.startsWith("/gestiones/")) {
     migas = ["Gestiones"];
     const tile = ZONAS_GESTIONES.flatMap((z) => z.tiles).find((t) => t.ruta === ruta);
+    if (tile) migas.push(tile.titulo);
+  } else if (ruta.startsWith("/pricing-studio/")) {
+    migas = ["Pricing Studio"];
+    const tile = ZONAS_PRICING.flatMap((z) => z.tiles).find((t) => t.ruta === ruta);
+    if (tile) migas.push(tile.titulo);
+  } else if (ruta.startsWith("/reglas/")) {
+    migas = ["Motor de reglas"];
+    const tile = ZONAS_REGLAS.flatMap((z) => z.tiles).find((t) => t.ruta === ruta);
     if (tile) migas.push(tile.titulo);
   } else if (ruta.startsWith("/administracion") || ZONAS_ADMINISTRACION.some((z) => z.tiles.some((t) => t.ruta === ruta))) {
     migas = ["Administración"];
@@ -107,16 +115,6 @@ export function Layout({ children }: PropsWithChildren) {
 
       <div className="app-main">
         <header className="app-topbar">
-          <div className="app-topbar__breadcrumb">
-            <span>Dashboard</span>
-            {migas.map((miga, indice) => (
-              <span key={`${indice}-${miga}`} className="app-topbar__miga">
-                <span className="app-topbar__separador">›</span>{" "}
-                {indice === migas.length - 1 ? <strong>{miga}</strong> : miga}
-              </span>
-            ))}
-          </div>
-
           <BusquedaGlobal />
 
           <div className="app-topbar__derecha">
@@ -126,6 +124,16 @@ export function Layout({ children }: PropsWithChildren) {
           <MenuUsuario />
           </div>
         </header>
+
+        <nav className="app-migas" aria-label="Ruta de navegación">
+          <span className="app-migas__item"><span aria-hidden="true">⌂</span> Dashboard</span>
+          {migas.map((miga, indice) => (
+            <span key={`${indice}-${miga}`} className="app-migas__tramo">
+              <span className="app-migas__separador" aria-hidden="true">›</span>
+              {indice === migas.length - 1 ? <strong className="app-migas__actual" aria-current="page">{miga}</strong> : <span className="app-migas__item">{miga}</span>}
+            </span>
+          ))}
+        </nav>
 
         <main className="app-content">{children}</main>
         <SesionGuardian />

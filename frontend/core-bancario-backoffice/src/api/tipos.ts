@@ -863,6 +863,7 @@ export interface ReasignacionResultadoResponse { reasignadas: number; rechazadas
 export interface TipoGestionAdmin {
   idTipoGestion: number; codigo: string; nombre: string; categoria: string;
   permiteRepetir: boolean; reglasActivas: number; reglasTotal: number;
+  entidadCodigo: string; entidadNombre: string; entidadOrden: number;
 }
 export interface CondicionRegla { variable: string; operador: string; valor: string; valorTexto?: string }
 export interface NivelRegla { nivel?: number; tipo: string; idUsuario?: number | null; idGrupo?: number | null; destino?: string }

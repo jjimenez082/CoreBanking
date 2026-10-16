@@ -76,6 +76,47 @@ export const ZONAS_GESTIONES: Zona[] = [
   },
 ];
 
+/** Launchpad de Pricing Studio (ronda 42, cimientos): productos, tasas de referencia y bases de cálculo (los calendarios viven en Administración). */
+export const ZONAS_PRICING: Zona[] = [
+  {
+    titulo: "Productos",
+    tiles: [
+      { titulo: "Productos operativos", sub: "Estructura, parámetros y componentes", icono: "⚙", permiso: "PRD_CONSULTA", ruta: "/pricing-studio/productos-operativos" },
+      { titulo: "Productos comerciales", sub: "Oferta, variantes y versiones", icono: "🏷", permiso: "PRD_CONSULTA", ruta: "/pricing-studio/productos-comerciales" },
+    ],
+  },
+  {
+    titulo: "Tasas y cálculo",
+    tiles: [
+      { titulo: "Tasas de referencia", sub: "Indicadores (TBP, Prime, SOFR) y su historial", icono: "％", permiso: "PRD_CONSULTA", ruta: "/pricing-studio/indicadores" },
+      { titulo: "Bases de cálculo", sub: "30/360, ACT/365, ACT/360, ACT/ACT", icono: "÷", permiso: "PRD_CONSULTA", ruta: "/pricing-studio/bases-calculo" },
+    ],
+  },
+  {
+    titulo: "Regulatorio",
+    tiles: [{ titulo: "Categorías regulatorias", sub: "Clasificación por país y regulador", icono: "§", permiso: "PRD_CONSULTA", ruta: "/pricing-studio/categorias-regulatorias" }],
+  },
+];
+
+/** Launchpad del Motor de reglas (ronda 43): piezas reutilizables, conjuntos versionados y bitácora de evaluaciones. */
+export const ZONAS_REGLAS: Zona[] = [
+  {
+    titulo: "Piezas",
+    tiles: [
+      { titulo: "Condiciones", sub: "Piezas reutilizables: atributo, operador y valor", icono: "∀", permiso: "RUL_CONSULTA", ruta: "/reglas/condiciones" },
+      { titulo: "Acciones", sub: "Decisiones, asignaciones y mensajes", icono: "➜", permiso: "RUL_CONSULTA", ruta: "/reglas/acciones" },
+    ],
+  },
+  {
+    titulo: "Conjuntos de reglas",
+    tiles: [{ titulo: "Conjuntos de reglas", sub: "Reglas versionadas, simulador y casos de prueba", icono: "☰", permiso: "RUL_CONSULTA", ruta: "/reglas/conjuntos" }],
+  },
+  {
+    titulo: "Seguimiento",
+    tiles: [{ titulo: "Evaluaciones", sub: "Bitácora: qué se evaluó y por qué", icono: "🔎", permiso: "RUL_CONSULTA", ruta: "/reglas/evaluaciones" }],
+  },
+];
+
 /** Launchpad del Gestor documental: una app por función; "por vencer" y "vencidos" abren la misma lista ya filtrada. */
 export const ZONAS_DOCUMENTOS: Zona[] = [
   {
@@ -134,6 +175,18 @@ export const IDS_APP: Record<string, string> = {
   "/tipo-cambio": "TCM-0001",
   "/feriados": "CAL-0001",
   "/auditoria": "AUD-0001",
+  "/pricing-studio": "PRD-0000",
+  "/pricing-studio/productos-operativos": "PRD-0001",
+  "/pricing-studio/productos-comerciales": "PRD-0002",
+  "/pricing-studio/indicadores": "PRD-0003",
+  "/calendarios": "PRD-0004",
+  "/pricing-studio/bases-calculo": "PRD-0005",
+  "/pricing-studio/categorias-regulatorias": "PRD-0006",
+  "/reglas": "RUL-0000",
+  "/reglas/condiciones": "RUL-0001",
+  "/reglas/acciones": "RUL-0002",
+  "/reglas/conjuntos": "RUL-0003",
+  "/reglas/evaluaciones": "RUL-0004",
 };
 
 /** Pantallas con ruta dinamica que no son mosaicos: tambien son APPs con su propio codigo. */
@@ -185,6 +238,12 @@ export function catalogoAplicaciones(): Aplicacion[] {
   for (const z of ZONAS_GESTIONES)
     for (const t of z.tiles)
       if (t.ruta) apps.push({ id: idDeTile(t), titulo: t.titulo, detalle: `Gestiones · ${z.titulo}`, ruta: t.ruta, permiso: t.permiso });
+  for (const z of ZONAS_PRICING)
+    for (const t of z.tiles)
+      if (t.ruta) apps.push({ id: idDeTile(t), titulo: t.titulo, detalle: `Pricing Studio · ${z.titulo}`, ruta: t.ruta, permiso: t.permiso });
+  for (const z of ZONAS_REGLAS)
+    for (const t of z.tiles)
+      if (t.ruta) apps.push({ id: idDeTile(t), titulo: t.titulo, detalle: `Reglas · ${z.titulo}`, ruta: t.ruta, permiso: t.permiso });
   for (const z of ZONAS_DOCUMENTOS)
     for (const t of z.tiles)
       if (t.ruta) apps.push({ id: idDeTile(t), titulo: t.titulo, detalle: `Gestor documental · ${z.titulo}`, ruta: t.ruta, permiso: t.permiso });
@@ -196,5 +255,5 @@ export function catalogoAplicaciones(): Aplicacion[] {
 
 /** Todos los mosaicos con ruta (para armar las favoritas del Dashboard). */
 export function todosLosTiles(): Tile[] {
-  return [...ZONAS_INTERLOCUTORES, ...ZONAS_GESTIONES, ...ZONAS_DOCUMENTOS, ...ZONAS_ADMINISTRACION].flatMap((z) => z.tiles);
+  return [...ZONAS_INTERLOCUTORES, ...ZONAS_GESTIONES, ...ZONAS_DOCUMENTOS, ...ZONAS_PRICING, ...ZONAS_REGLAS, ...ZONAS_ADMINISTRACION].flatMap((z) => z.tiles);
 }

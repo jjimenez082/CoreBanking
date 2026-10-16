@@ -1,7 +1,7 @@
 namespace CoreBancario.Api.Modelos;
 
 // ----- Reglas de aprobacion -----
-public record TipoGestionAdminResponse(long IdTipoGestion, string Codigo, string Nombre, string Categoria, bool PermiteRepetir, int ReglasActivas, int ReglasTotal);
+public record TipoGestionAdminResponse(long IdTipoGestion, string Codigo, string Nombre, string Categoria, bool PermiteRepetir, int ReglasActivas, int ReglasTotal, string EntidadCodigo, string EntidadNombre, int EntidadOrden);
 public record CondicionDto(string Variable, string Operador, string Valor);
 public record NivelReglaDto(string Tipo, long? IdUsuario, long? IdGrupo);
 public record CondicionResponse(string Variable, string Operador, string Valor, string ValorTexto);

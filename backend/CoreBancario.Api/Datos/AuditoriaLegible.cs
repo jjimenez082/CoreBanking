@@ -29,6 +29,10 @@ public static class AuditoriaLegible
         ["PARAMETRO"] = "Parámetro",
         ["GESTION"] = "Gestión",
         ["ROL_REQUISITO"] = "Requisito de rol",
+        ["BASE_CALCULO"] = "Base de cálculo", ["INDICADOR_FINANCIERO"] = "Indicador financiero", ["INDICADOR_VALOR"] = "Valor de indicador",
+        ["CALENDARIO"] = "Calendario", ["CATEGORIA_REGULATORIA"] = "Categoría regulatoria", ["PRODUCTO_OPERATIVO"] = "Producto operativo",
+        ["PARAMETRO_PRODUCTO"] = "Parámetro de producto", ["PRODUCTO_COMERCIAL"] = "Producto comercial", ["PRODUCTO_VERSION"] = "Versión de producto",
+        ["CONJUNTO_REGLAS"] = "Conjunto de reglas", ["CONJUNTO_VERSION"] = "Versión de conjunto de reglas", ["REGLA_CONDICION"] = "Condición de regla", ["REGLA_ACCION"] = "Acción de regla", ["REGLA_CASO"] = "Caso de prueba de reglas",
     };
 
     // Campos propios de las pantallas de administracion (los de cliente salen de GestionRepositorio.EtiquetaCampo).

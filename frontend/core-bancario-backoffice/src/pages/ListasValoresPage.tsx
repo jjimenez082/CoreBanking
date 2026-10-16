@@ -1,18 +1,10 @@
-import { PanelModal } from "../components/VentanaModal";
-import { useEffect, useState, type FormEvent } from "react";
+import { PanelModal, VentanaModal } from "../components/VentanaModal";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { isAxiosError } from "axios";
 import { useApiClient } from "../api/useApiClient";
 import { usePermisos } from "../contexts/PermisosContext";
 import { TablaDatos, type ColumnaTabla } from "../components/TablaDatos";
 import type { ApiErrorBody, ListaItemResponse, ListaTipoResponse } from "../api/tipos";
-
-const COLUMNAS_LISTAS: ColumnaTabla<ListaTipoResponse>[] = [
-  { clave: "codigo", encabezado: "Código", render: (l) => l.codigo, textoBusqueda: (l) => l.codigo },
-  { clave: "nombre", encabezado: "Nombre", render: (l) => l.nombre, textoBusqueda: (l) => l.nombre },
-  { clave: "estado", encabezado: "Estado", render: (l) => l.estado },
-  { clave: "sistema", encabezado: "De sistema", render: (l) => (l.esSistema ? "Sí" : "—") },
-  { clave: "items", encabezado: "Valores", render: (l) => l.cantidadItems },
-];
 
 const COLUMNAS_VALORES: ColumnaTabla<ListaItemResponse>[] = [
   { clave: "orden", encabezado: "Orden", render: (i) => i.orden ?? "—" },
@@ -36,14 +28,25 @@ function unica(seleccion: Set<string | number>): number | null {
   return seleccion.size === 1 ? Number(Array.from(seleccion)[0]) : null;
 }
 
-type PanelLista = { modo: "nuevo" | "editar"; codigo: string; nombre: string; descripcion: string } | null;
-type PanelValor = { modo: "nuevo" | "editar"; codigo: string; nombre: string; orden: string; descripcion: string } | null;
+/** Ejecuta una acción por cada registro seleccionado y devuelve los fallos (vacío si todo salió bien). */
+async function ejecutarLote(claves: Set<string | number>, accion: (clave: number) => Promise<unknown>, etiqueta: (clave: number) => string): Promise<string[]> {
+  const fallos: string[] = [];
+  for (const k of Array.from(claves)) {
+    const clave = Number(k);
+    try { await accion(clave); } catch (err) { fallos.push(`${etiqueta(clave)}: ${mensajeError(err, "error inesperado")}`); }
+  }
+  return fallos;
+}
+
+type Modo = "ver" | "editar" | "nuevo";
+type Pestana = "datos" | "valores";
 
 /**
  * Administracion de Listas de Valores (gen.LISTA_VALORES_TIPO / _ITEM).
  * Seguridad: LOV_ACCESO para entrar; LOV_<codigo> para mantener los valores de
  * una lista; LOV_ADMINISTRACION para todas las listas y para crear/borrar
  * listas. Los valores no se borran si ya se usaron: se desactivan.
+ * Patrón de ficha: el nombre de la lista abre su consulta (datos y valores en pestañas) y desde ahí se edita.
  */
 export function ListasValoresPage() {
   const api = useApiClient();
@@ -52,21 +55,11 @@ export function ListasValoresPage() {
   const esAdmin = tienePermiso("LOV_ADMINISTRACION");
 
   const [listas, setListas] = useState<ListaTipoResponse[]>([]);
-  const [items, setItems] = useState<ListaItemResponse[]>([]);
   const [cargandoListas, setCargandoListas] = useState(false);
-  const [cargandoItems, setCargandoItems] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
-
   const [seleccionListas, setSeleccionListas] = useState<Set<string | number>>(new Set());
-  const [seleccionItems, setSeleccionItems] = useState<Set<string | number>>(new Set());
-
-  const [panelLista, setPanelLista] = useState<PanelLista>(null);
-  const [panelValor, setPanelValor] = useState<PanelValor>(null);
-  const [guardando, setGuardando] = useState(false);
-
-  const idListaActiva = unica(seleccionListas);
-  const listaActiva = listas.find((l) => l.idListaValoresTipo === idListaActiva) ?? null;
+  const [ficha, setFicha] = useState<{ id: number | null; modo: Modo; pestana: Pestana; aviso?: string } | null>(null);
 
   async function cargarListas() {
     setCargandoListas(true);
@@ -81,201 +74,36 @@ export function ListasValoresPage() {
     }
   }
 
-  async function cargarItems(idLista: number) {
-    setCargandoItems(true);
-    try {
-      const r = await api.get<ListaItemResponse[]>(`/api/listas-valores/tipos/${idLista}/items`);
-      setItems(r.data);
-      setSeleccionItems(new Set());
-    } catch (err) {
-      setError(mensajeError(err, "Error inesperado al cargar los valores."));
-      setItems([]);
-    } finally {
-      setCargandoItems(false);
-    }
-  }
-
   useEffect(() => {
     if (cargandoPermisos || !puedeEntrar) return;
-    cargarListas();
+    void cargarListas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cargandoPermisos, puedeEntrar]);
 
-  // Al elegir exactamente una lista se cargan sus valores.
-  useEffect(() => {
-    setPanelValor(null);
-    if (idListaActiva === null) {
-      setItems([]);
-      return;
-    }
-    cargarItems(idListaActiva);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idListaActiva]);
-
-  // Ejecuta una accion por cada registro seleccionado y resume los fallos.
-  async function enLote(
-    claves: Set<string | number>,
-    accion: (clave: number) => Promise<unknown>,
-    etiqueta: (clave: number) => string,
-    resumenOk: string,
-  ) {
-    setError(null);
-    setAviso(null);
-    const fallos: string[] = [];
-    for (const k of Array.from(claves)) {
-      const clave = Number(k);
-      try {
-        await accion(clave);
-      } catch (err) {
-        fallos.push(`${etiqueta(clave)}: ${mensajeError(err, "error inesperado")}`);
-      }
-    }
-    if (fallos.length > 0) setError(fallos.join(" | "));
-    else setAviso(resumenOk);
-  }
-
-  // ----- Listas -----
-  function abrirNuevaLista() {
-    setPanelLista({ modo: "nuevo", codigo: "", nombre: "", descripcion: "" });
-  }
-
-  function abrirEditarLista() {
-    if (!listaActiva) return;
-    setPanelLista({
-      modo: "editar",
-      codigo: listaActiva.codigo,
-      nombre: listaActiva.nombre,
-      descripcion: listaActiva.descripcion ?? "",
-    });
-  }
-
-  async function guardarLista(e: FormEvent) {
-    e.preventDefault();
-    if (!panelLista) return;
-    setGuardando(true);
-    setError(null);
-    setAviso(null);
-    try {
-      if (panelLista.modo === "nuevo") {
-        await api.post("/api/listas-valores/tipos", {
-          codigo: panelLista.codigo,
-          nombre: panelLista.nombre,
-          descripcion: panelLista.descripcion || null,
-        });
-        setAviso(
-          "Lista creada. Asigne su permiso LOV_" +
-            panelLista.codigo.trim().toUpperCase().replace(/ /g, "_") +
-            " a los roles que deban mantenerla (pantalla Seguridad).",
-        );
-      } else if (listaActiva) {
-        await api.put(`/api/listas-valores/tipos/${listaActiva.idListaValoresTipo}`, {
-          nombre: panelLista.nombre,
-          descripcion: panelLista.descripcion || null,
-        });
-        setAviso("Lista actualizada.");
-      }
-      setPanelLista(null);
-      await cargarListas();
-    } catch (err) {
-      setError(mensajeError(err, "Error inesperado al guardar la lista."));
-    } finally {
-      setGuardando(false);
-    }
-  }
+  const columnas: ColumnaTabla<ListaTipoResponse>[] = useMemo(() => [
+    { clave: "codigo", encabezado: "Código", render: (l) => l.codigo, textoBusqueda: (l) => l.codigo },
+    { clave: "nombre", encabezado: "Nombre", render: (l) => (
+        <button type="button" className="boton-enlace-id" title="Consultar la lista y sus valores"
+          onClick={() => { setAviso(null); setFicha({ id: l.idListaValoresTipo, modo: "ver", pestana: "datos" }); }}>{l.nombre}</button>
+      ), textoBusqueda: (l) => l.nombre },
+    { clave: "estado", encabezado: "Estado", render: (l) => l.estado },
+    { clave: "sistema", encabezado: "De sistema", render: (l) => (l.esSistema ? "Sí" : "—") },
+    { clave: "items", encabezado: "Valores", render: (l) => l.cantidadItems },
+  ], []);
 
   async function cambiarEstadoListas(estado: "Activo" | "Inactivo") {
-    await enLote(
-      seleccionListas,
-      (id) => api.post(`/api/listas-valores/tipos/${id}/estado`, { estado }),
-      (id) => listas.find((l) => l.idListaValoresTipo === id)?.codigo ?? String(id),
-      estado === "Activo" ? "Listas activadas." : "Listas desactivadas.",
-    );
+    setError(null); setAviso(null);
+    const fallos = await ejecutarLote(seleccionListas, (id) => api.post(`/api/listas-valores/tipos/${id}/estado`, { estado }), (id) => listas.find((l) => l.idListaValoresTipo === id)?.codigo ?? String(id));
+    if (fallos.length > 0) setError(fallos.join(" | ")); else setAviso(estado === "Activo" ? "Listas activadas." : "Listas desactivadas.");
     await cargarListas();
-    if (idListaActiva !== null) await cargarItems(idListaActiva);
   }
 
   async function borrarListas() {
     if (!window.confirm(`¿Eliminar ${seleccionListas.size} lista(s)? Esta acción no se puede deshacer.`)) return;
-    await enLote(
-      seleccionListas,
-      (id) => api.delete(`/api/listas-valores/tipos/${id}`),
-      (id) => listas.find((l) => l.idListaValoresTipo === id)?.codigo ?? String(id),
-      "Listas eliminadas.",
-    );
+    setError(null); setAviso(null);
+    const fallos = await ejecutarLote(seleccionListas, (id) => api.delete(`/api/listas-valores/tipos/${id}`), (id) => listas.find((l) => l.idListaValoresTipo === id)?.codigo ?? String(id));
+    if (fallos.length > 0) setError(fallos.join(" | ")); else setAviso("Listas eliminadas.");
     setSeleccionListas(new Set());
-    await cargarListas();
-  }
-
-  // ----- Valores -----
-  const puedeMantenerLista = !!listaActiva && (esAdmin || tienePermiso(`LOV_${listaActiva.codigo}`));
-
-  function abrirNuevoValor() {
-    setPanelValor({ modo: "nuevo", codigo: "", nombre: "", orden: "", descripcion: "" });
-  }
-
-  function abrirEditarValor() {
-    const id = unica(seleccionItems);
-    const item = items.find((i) => i.idListaValoresItem === id);
-    if (!item) return;
-    setPanelValor({
-      modo: "editar",
-      codigo: item.codigo,
-      nombre: item.nombre,
-      orden: item.orden?.toString() ?? "",
-      descripcion: item.descripcion ?? "",
-    });
-  }
-
-  async function guardarValor(e: FormEvent) {
-    e.preventDefault();
-    if (!panelValor || idListaActiva === null) return;
-    setGuardando(true);
-    setError(null);
-    setAviso(null);
-    const orden = panelValor.orden.trim() === "" ? null : Number(panelValor.orden);
-    try {
-      if (panelValor.modo === "nuevo") {
-        await api.post(`/api/listas-valores/tipos/${idListaActiva}/items`, {
-          codigo: panelValor.codigo,
-          nombre: panelValor.nombre,
-          orden,
-          descripcion: panelValor.descripcion.trim() || null,
-        });
-        setAviso("Valor creado.");
-      } else {
-        const id = unica(seleccionItems);
-        await api.put(`/api/listas-valores/items/${id}`, { nombre: panelValor.nombre, orden, descripcion: panelValor.descripcion.trim() || null });
-        setAviso("Valor actualizado.");
-      }
-      setPanelValor(null);
-      await cargarItems(idListaActiva);
-      await cargarListas();
-    } catch (err) {
-      setError(mensajeError(err, "Error inesperado al guardar el valor."));
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  async function cambiarEstadoValores(estado: "Activo" | "Inactivo") {
-    await enLote(
-      seleccionItems,
-      (id) => api.post(`/api/listas-valores/items/${id}/estado`, { estado }),
-      (id) => items.find((i) => i.idListaValoresItem === id)?.codigo ?? String(id),
-      estado === "Activo" ? "Valores activados." : "Valores desactivados.",
-    );
-    if (idListaActiva !== null) await cargarItems(idListaActiva);
-  }
-
-  async function borrarValores() {
-    if (!window.confirm(`¿Eliminar ${seleccionItems.size} valor(es)? Solo se pueden borrar los que no se han usado.`)) return;
-    await enLote(
-      seleccionItems,
-      (id) => api.delete(`/api/listas-valores/items/${id}`),
-      (id) => items.find((i) => i.idListaValoresItem === id)?.codigo ?? String(id),
-      "Valores eliminados.",
-    );
-    if (idListaActiva !== null) await cargarItems(idListaActiva);
     await cargarListas();
   }
 
@@ -300,147 +128,226 @@ export function ListasValoresPage() {
     );
   }
 
+  const listaFicha = ficha?.id != null ? listas.find((l) => l.idListaValoresTipo === ficha.id) ?? null : null;
+
   return (
     <div>
       <h1>Listas de Valores</h1>
       <p className="nota">
         Catálogos que alimentan los combos y filtros del sistema. Un valor que ya se usó no se borra:
         se desactiva y deja de ofrecerse en registros nuevos. Solo ves las listas para las que tienes
-        permiso.
+        permiso. Pulsa el nombre de una lista para consultarla, ver sus valores y editarla.
       </p>
 
       {error && <p className="mensaje-error">{error}</p>}
       {aviso && <p className="mensaje-exito">{aviso}</p>}
 
-      <section className="seccion">
-        <h2>Listas</h2>
-        <TablaDatos
-          columnas={COLUMNAS_LISTAS}
-          filas={listas}
-          claveFila={(l) => l.idListaValoresTipo}
-          seleccion={seleccionListas}
-          onCambiarSeleccion={setSeleccionListas}
-          cargando={cargandoListas}
-          mensajeVacio="No hay listas visibles para tu usuario."
-          placeholderBusqueda="Buscar lista"
-          comandos={[
-            { clave: "nuevo", etiqueta: "Nuevo", icono: "+", oculto: !esAdmin, onClick: abrirNuevaLista },
-            { clave: "editar", etiqueta: "Editar", icono: "✎", oculto: !esAdmin, requiereSeleccion: "una", onClick: abrirEditarLista },
-            { clave: "activar", etiqueta: "Activar", icono: "✓", oculto: !esAdmin, requiereSeleccion: "varias", onClick: () => cambiarEstadoListas("Activo") },
-            { clave: "desactivar", etiqueta: "Desactivar", icono: "⊘", oculto: !esAdmin, requiereSeleccion: "varias", onClick: () => cambiarEstadoListas("Inactivo") },
-            { clave: "eliminar", etiqueta: "Eliminar", icono: "🗑", oculto: !esAdmin, requiereSeleccion: "varias", onClick: borrarListas },
-            { clave: "actualizar", etiqueta: "Actualizar", icono: "↻", onClick: cargarListas },
-          ]}
-        />
+      <TablaDatos
+        columnas={columnas}
+        filas={listas}
+        claveFila={(l) => l.idListaValoresTipo}
+        seleccion={seleccionListas}
+        onCambiarSeleccion={setSeleccionListas}
+        cargando={cargandoListas}
+        mensajeVacio="No hay listas visibles para tu usuario."
+        placeholderBusqueda="Buscar lista"
+        comandos={[
+          { clave: "nuevo", etiqueta: "Nuevo", icono: "+", oculto: !esAdmin, onClick: () => { setAviso(null); setFicha({ id: null, modo: "nuevo", pestana: "datos" }); } },
+          { clave: "activar", etiqueta: "Activar", icono: "✓", oculto: !esAdmin, requiereSeleccion: "varias", onClick: () => cambiarEstadoListas("Activo") },
+          { clave: "desactivar", etiqueta: "Desactivar", icono: "⊘", oculto: !esAdmin, requiereSeleccion: "varias", onClick: () => cambiarEstadoListas("Inactivo") },
+          { clave: "eliminar", etiqueta: "Eliminar", icono: "🗑", oculto: !esAdmin, requiereSeleccion: "varias", onClick: borrarListas },
+          { clave: "actualizar", etiqueta: "Actualizar", icono: "↻", onClick: cargarListas },
+        ]}
+      />
 
-        {panelLista && (
-          <PanelModal onCerrar={() => setPanelLista(null)}>
-            <h3>{panelLista.modo === "nuevo" ? "Nueva lista" : `Editar lista ${panelLista.codigo}`}</h3>
-            {error && <p className="mensaje-error">{error}</p>}
-            <form onSubmit={guardarLista} className="formulario-en-linea">
-              <input
-                type="text"
-                placeholder="Código (ej. TIPO_CLIENTE)"
-                value={panelLista.codigo}
-                disabled={panelLista.modo === "editar"}
-                onChange={(e) => setPanelLista({ ...panelLista, codigo: e.target.value })}
-                required
-              />
-              <input
-                type="text"
-                placeholder="Nombre"
-                value={panelLista.nombre}
-                onChange={(e) => setPanelLista({ ...panelLista, nombre: e.target.value })}
-                required
-              />
-              <input
-                type="text"
-                placeholder="Descripción (opcional)"
-                value={panelLista.descripcion}
-                onChange={(e) => setPanelLista({ ...panelLista, descripcion: e.target.value })}
-              />
-              <button type="submit" disabled={guardando}>
-                {guardando ? "Guardando..." : "Guardar"}
-              </button>
-              <button type="button" className="boton-secundario" onClick={() => setPanelLista(null)}>
-                Cancelar
-              </button>
-            </form>
-          </PanelModal>
-        )}
-      </section>
+      {ficha && (ficha.id == null || listaFicha) && (
+        <FichaLista key={ficha.id ?? "nueva"} lista={listaFicha} modoInicial={ficha.modo} pestanaInicial={ficha.pestana} avisoInicial={ficha.aviso} esAdmin={esAdmin}
+          onCerrar={() => setFicha(null)} onRefrescar={cargarListas}
+          onCreada={async (id, codigo) => {
+            await cargarListas();
+            setFicha({ id, modo: "editar", pestana: "valores", aviso: `Lista creada. Asigne su permiso LOV_${codigo.trim().toUpperCase().replace(/ /g, "_")} a los roles que deban mantenerla (pantalla Seguridad). Agregue sus valores a continuación.` });
+          }} />
+      )}
+    </div>
+  );
+}
 
-      <section className="seccion">
-        <h2>{listaActiva ? `Valores de ${listaActiva.nombre}` : "Valores"}</h2>
-        {!listaActiva ? (
-          <p className="nota">Marca una lista (una sola) para ver y mantener sus valores.</p>
-        ) : (
-          <>
-            <TablaDatos
-              columnas={COLUMNAS_VALORES}
-              filas={items}
-              claveFila={(i) => i.idListaValoresItem}
-              seleccion={seleccionItems}
-              onCambiarSeleccion={setSeleccionItems}
-              cargando={cargandoItems}
-              mensajeVacio="Esta lista no tiene valores."
-              placeholderBusqueda="Buscar valor"
-              comandos={[
-                { clave: "nuevo", etiqueta: "Nuevo", icono: "+", oculto: !puedeMantenerLista, onClick: abrirNuevoValor },
-                { clave: "editar", etiqueta: "Editar", icono: "✎", oculto: !puedeMantenerLista, requiereSeleccion: "una", onClick: abrirEditarValor },
-                { clave: "activar", etiqueta: "Activar", icono: "✓", oculto: !puedeMantenerLista, requiereSeleccion: "varias", onClick: () => cambiarEstadoValores("Activo") },
-                { clave: "desactivar", etiqueta: "Desactivar", icono: "⊘", oculto: !puedeMantenerLista, requiereSeleccion: "varias", onClick: () => cambiarEstadoValores("Inactivo") },
-                { clave: "eliminar", etiqueta: "Eliminar", icono: "🗑", oculto: !puedeMantenerLista, requiereSeleccion: "varias", onClick: borrarValores },
-                { clave: "actualizar", etiqueta: "Actualizar", icono: "↻", onClick: () => cargarItems(listaActiva.idListaValoresTipo) },
-              ]}
-            />
+// ------------------------------------------------------------------------------------------------ Ficha de la lista
+function FichaLista({ lista, modoInicial, pestanaInicial, avisoInicial, esAdmin, onCerrar, onRefrescar, onCreada }: {
+  lista: ListaTipoResponse | null; modoInicial: Modo; pestanaInicial: Pestana; avisoInicial?: string; esAdmin: boolean;
+  onCerrar: () => void; onRefrescar: () => Promise<void>; onCreada: (id: number, codigo: string) => Promise<void>;
+}) {
+  const api = useApiClient();
+  const { tienePermiso } = usePermisos();
+  const puedeMantener = !!lista && (esAdmin || tienePermiso(`LOV_${lista.codigo}`));
+  const [modo, setModo] = useState<Modo>(modoInicial);
+  const [pestana, setPestana] = useState<Pestana>(pestanaInicial);
+  const [form, setForm] = useState({ codigo: lista?.codigo ?? "", nombre: lista?.nombre ?? "", descripcion: lista?.descripcion ?? "" });
+  const [errorForm, setErrorForm] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(avisoInicial ?? null);
+  const [guardando, setGuardando] = useState(false);
 
-            {panelValor && (
-              <PanelModal onCerrar={() => setPanelValor(null)}>
-                <h3>{panelValor.modo === "nuevo" ? "Nuevo valor" : `Editar valor ${panelValor.codigo}`}</h3>
-                {error && <p className="mensaje-error">{error}</p>}
-            <form onSubmit={guardarValor} className="formulario-en-linea">
-                  <input
-                    type="text"
-                    placeholder="Código (ej. CEDULA_FISICA)"
-                    value={panelValor.codigo}
-                    disabled={panelValor.modo === "editar"}
-                    onChange={(e) => setPanelValor({ ...panelValor, codigo: e.target.value })}
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Nombre"
-                    value={panelValor.nombre}
-                    onChange={(e) => setPanelValor({ ...panelValor, nombre: e.target.value })}
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="Orden"
-                    value={panelValor.orden}
-                    onChange={(e) => setPanelValor({ ...panelValor, orden: e.target.value })}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Descripción (texto explicativo, opcional)"
-                    maxLength={500}
-                    style={{ minWidth: "22rem" }}
-                    value={panelValor.descripcion}
-                    onChange={(e) => setPanelValor({ ...panelValor, descripcion: e.target.value })}
-                  />
-                  <button type="submit" disabled={guardando}>
-                    {guardando ? "Guardando..." : "Guardar"}
-                  </button>
-                  <button type="button" className="boton-secundario" onClick={() => setPanelValor(null)}>
-                    Cancelar
-                  </button>
-                </form>
-              </PanelModal>
-            )}
-          </>
-        )}
-      </section>
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    setGuardando(true); setErrorForm(null);
+    try {
+      if (modo === "nuevo") {
+        const r = await api.post<ListaTipoResponse>("/api/listas-valores/tipos", { codigo: form.codigo, nombre: form.nombre, descripcion: form.descripcion || null });
+        await onCreada(r.data.idListaValoresTipo, form.codigo);
+        return;
+      }
+      if (lista) await api.put(`/api/listas-valores/tipos/${lista.idListaValoresTipo}`, { nombre: form.nombre, descripcion: form.descripcion || null });
+      setAviso("Lista actualizada."); setModo("ver"); await onRefrescar();
+    } catch (err) { setErrorForm(mensajeError(err, "Error inesperado al guardar la lista.")); }
+    finally { setGuardando(false); }
+  }
+
+  const dato = (etiqueta: string, valor: ReactNode) => (<div className="info-fila"><span className="info-fila__etiqueta">{etiqueta}</span><span className="info-fila__valor">{valor}</span></div>);
+  const editaDatos = esAdmin && modo !== "ver";
+
+  return (
+    <VentanaModal titulo={lista ? `${lista.codigo} · ${lista.nombre}` : "Nueva lista"} onCerrar={onCerrar} ancho={1000}
+      acciones={modo === "ver" && lista && (esAdmin || puedeMantener) ? (
+        <button type="button" onClick={() => { setForm({ codigo: lista.codigo, nombre: lista.nombre, descripcion: lista.descripcion ?? "" }); setErrorForm(null); setAviso(null); setModo("editar"); }}>✎ Editar</button>
+      ) : undefined}>
+      {lista && <p className="nota" style={{ marginTop: 0 }}>Estado: <strong>{lista.estado}</strong>{modo === "editar" ? " · modo edición" : ""}</p>}
+      {aviso && <p className="mensaje-exito">{aviso}</p>}
+      <div className="v360__pestanas" role="tablist">
+        <button type="button" role="tab" aria-selected={pestana === "datos"} className={`v360__pestana ${pestana === "datos" ? "v360__pestana--activa" : ""}`} onClick={() => setPestana("datos")}>Datos de la lista</button>
+        <button type="button" role="tab" aria-selected={pestana === "valores"} className={`v360__pestana ${pestana === "valores" ? "v360__pestana--activa" : ""}`} onClick={() => setPestana("valores")}>Valores{lista ? ` (${lista.cantidadItems})` : ""}</button>
+      </div>
+
+      {pestana === "datos" && !editaDatos && lista && (
+        <div>
+          {dato("Código", lista.codigo)}
+          {dato("Nombre", lista.nombre)}
+          {dato("Descripción", lista.descripcion || "—")}
+          {dato("De sistema", lista.esSistema ? "Sí" : "No")}
+          {dato("Permiso para mantener sus valores", <code>LOV_{lista.codigo}</code>)}
+          {modo === "editar" && !esAdmin && <p className="nota">Puede mantener los valores de esta lista (pestaña Valores); los datos de la lista solo los edita un administrador de listas.</p>}
+        </div>
+      )}
+
+      {pestana === "datos" && editaDatos && (
+        <>
+          {errorForm && <p className="mensaje-error">{errorForm}</p>}
+          <form className="formulario" onSubmit={guardar}>
+            <label>Código (ej. TIPO_CLIENTE) <input type="text" value={form.codigo} disabled={modo === "editar"} onChange={(e) => setForm({ ...form, codigo: e.target.value })} required /></label>
+            <label>Nombre <input type="text" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required /></label>
+            <label className="formulario__ancho">Descripción (opcional) <input type="text" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} /></label>
+            <div className="formulario__ancho" style={{ display: "flex", gap: "0.5rem" }}>
+              <button type="submit" disabled={guardando}>{guardando ? "Guardando..." : modo === "nuevo" ? "Guardar y agregar valores" : "Guardar"}</button>
+              <button type="button" className="boton-secundario" onClick={() => { if (modo === "nuevo") onCerrar(); else { setModo("ver"); setErrorForm(null); } }}>Cancelar</button>
+            </div>
+          </form>
+        </>
+      )}
+
+      {pestana === "valores" && (lista ? (
+        <ValoresLista lista={lista} puedeEditar={puedeMantener && modo === "editar"} onCambio={() => void onRefrescar()} />
+      ) : (
+        <p className="nota">Guarde primero los datos de la lista: después podrá agregar sus valores aquí mismo.</p>
+      ))}
+    </VentanaModal>
+  );
+}
+
+// ------------------------------------------------------------------------------------------------ Valores de la lista
+type PanelValor = { modo: "nuevo" | "editar"; codigo: string; nombre: string; orden: string; descripcion: string } | null;
+
+function ValoresLista({ lista, puedeEditar, onCambio }: { lista: ListaTipoResponse; puedeEditar: boolean; onCambio: () => void }) {
+  const api = useApiClient();
+  const [items, setItems] = useState<ListaItemResponse[]>([]);
+  const [cargando, setCargando] = useState(false);
+  const [seleccion, setSeleccion] = useState<Set<string | number>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [panel, setPanel] = useState<PanelValor>(null);
+  const [guardando, setGuardando] = useState(false);
+  const idLista = lista.idListaValoresTipo;
+
+  async function cargarItems() {
+    setCargando(true);
+    try {
+      const r = await api.get<ListaItemResponse[]>(`/api/listas-valores/tipos/${idLista}/items`);
+      setItems(r.data); setSeleccion(new Set());
+    } catch (err) { setError(mensajeError(err, "Error inesperado al cargar los valores.")); setItems([]); }
+    finally { setCargando(false); }
+  }
+  useEffect(() => { void cargarItems(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [idLista]);
+
+  function abrirEditar() {
+    const item = items.find((i) => i.idListaValoresItem === unica(seleccion));
+    if (!item) return;
+    setPanel({ modo: "editar", codigo: item.codigo, nombre: item.nombre, orden: item.orden?.toString() ?? "", descripcion: item.descripcion ?? "" });
+  }
+
+  async function guardar(e: FormEvent) {
+    e.preventDefault();
+    if (!panel) return;
+    setGuardando(true); setError(null); setAviso(null);
+    const orden = panel.orden.trim() === "" ? null : Number(panel.orden);
+    try {
+      if (panel.modo === "nuevo") {
+        await api.post(`/api/listas-valores/tipos/${idLista}/items`, { codigo: panel.codigo, nombre: panel.nombre, orden, descripcion: panel.descripcion.trim() || null });
+        setAviso("Valor creado.");
+      } else {
+        await api.put(`/api/listas-valores/items/${unica(seleccion)}`, { nombre: panel.nombre, orden, descripcion: panel.descripcion.trim() || null });
+        setAviso("Valor actualizado.");
+      }
+      setPanel(null);
+      await cargarItems(); onCambio();
+    } catch (err) { setError(mensajeError(err, "Error inesperado al guardar el valor.")); }
+    finally { setGuardando(false); }
+  }
+
+  async function cambiarEstado(estado: "Activo" | "Inactivo") {
+    setError(null); setAviso(null);
+    const fallos = await ejecutarLote(seleccion, (id) => api.post(`/api/listas-valores/items/${id}/estado`, { estado }), (id) => items.find((i) => i.idListaValoresItem === id)?.codigo ?? String(id));
+    if (fallos.length > 0) setError(fallos.join(" | ")); else setAviso(estado === "Activo" ? "Valores activados." : "Valores desactivados.");
+    await cargarItems(); onCambio();
+  }
+
+  async function borrar() {
+    if (!window.confirm(`¿Eliminar ${seleccion.size} valor(es)? Solo se pueden borrar los que no se han usado.`)) return;
+    setError(null); setAviso(null);
+    const fallos = await ejecutarLote(seleccion, (id) => api.delete(`/api/listas-valores/items/${id}`), (id) => items.find((i) => i.idListaValoresItem === id)?.codigo ?? String(id));
+    if (fallos.length > 0) setError(fallos.join(" | ")); else setAviso("Valores eliminados.");
+    await cargarItems(); onCambio();
+  }
+
+  return (
+    <div>
+      {!puedeEditar && <p className="nota" style={{ marginTop: 0 }}>Consulta. Para agregar o cambiar valores pulse «Editar» en la parte inferior de la ficha.</p>}
+      {error && <p className="mensaje-error">{error}</p>}
+      {aviso && <p className="mensaje-exito">{aviso}</p>}
+      <TablaDatos columnas={COLUMNAS_VALORES} filas={items} claveFila={(i) => i.idListaValoresItem} seleccion={seleccion} onCambiarSeleccion={setSeleccion} cargando={cargando}
+        mensajeVacio="Esta lista no tiene valores." placeholderBusqueda="Buscar valor"
+        comandos={[
+          { clave: "nuevo", etiqueta: "Nuevo", icono: "+", oculto: !puedeEditar, onClick: () => setPanel({ modo: "nuevo", codigo: "", nombre: "", orden: "", descripcion: "" }) },
+          { clave: "editar", etiqueta: "Editar", icono: "✎", oculto: !puedeEditar, requiereSeleccion: "una", onClick: abrirEditar },
+          { clave: "activar", etiqueta: "Activar", icono: "✓", oculto: !puedeEditar, requiereSeleccion: "varias", onClick: () => cambiarEstado("Activo") },
+          { clave: "desactivar", etiqueta: "Desactivar", icono: "⊘", oculto: !puedeEditar, requiereSeleccion: "varias", onClick: () => cambiarEstado("Inactivo") },
+          { clave: "eliminar", etiqueta: "Eliminar", icono: "🗑", oculto: !puedeEditar, requiereSeleccion: "varias", onClick: borrar },
+          { clave: "actualizar", etiqueta: "Actualizar", icono: "↻", onClick: () => cargarItems() },
+        ]} />
+
+      {panel && (
+        <PanelModal onCerrar={() => setPanel(null)} ancho={640}>
+          <h3>{panel.modo === "nuevo" ? "Nuevo valor" : `Editar valor ${panel.codigo}`}</h3>
+          {error && <p className="mensaje-error">{error}</p>}
+          <form onSubmit={guardar} className="formulario">
+            <label>Código (ej. CEDULA_FISICA) <input type="text" value={panel.codigo} disabled={panel.modo === "editar"} onChange={(e) => setPanel({ ...panel, codigo: e.target.value })} required /></label>
+            <label>Nombre <input type="text" value={panel.nombre} onChange={(e) => setPanel({ ...panel, nombre: e.target.value })} required /></label>
+            <label>Orden <input type="number" value={panel.orden} onChange={(e) => setPanel({ ...panel, orden: e.target.value })} /></label>
+            <label className="formulario__ancho">Descripción (texto explicativo, opcional) <input type="text" maxLength={500} value={panel.descripcion} onChange={(e) => setPanel({ ...panel, descripcion: e.target.value })} /></label>
+            <div className="formulario__ancho" style={{ display: "flex", gap: "0.5rem" }}>
+              <button type="submit" disabled={guardando}>{guardando ? "Guardando..." : "Guardar"}</button>
+              <button type="button" className="boton-secundario" onClick={() => setPanel(null)}>Cancelar</button>
+            </div>
+          </form>
+        </PanelModal>
+      )}
     </div>
   );
 }

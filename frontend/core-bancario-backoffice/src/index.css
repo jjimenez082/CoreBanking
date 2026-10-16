@@ -311,9 +311,17 @@ button:disabled {
 
 .formulario {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
 }
+
+/* Evita que un texto largo (p. ej. una opción de combo) ensanche la columna y corte el formulario */
+.formulario > * { min-width: 0; }
+.formulario input:not([type="checkbox"]):not([type="radio"]),
+.formulario select { width: 100%; box-sizing: border-box; }
+.formulario fieldset { min-width: 0; }
+.formulario .formulario__ancho { grid-column: 1 / -1; }
+.formulario label.formulario__check { flex-direction: row; align-items: center; gap: 0.5rem; }
 
 .formulario label {
   display: flex;
@@ -1077,3 +1085,26 @@ button:disabled {
 .docs-req--error { background: #fdeeee; }
 .docs-req--error .docs-req__icono { background: #f9c9c9; color: #9b1c1c; }
 .v360__fallecido { display: flex; flex-wrap: wrap; gap: 0.5rem 0.8rem; align-items: baseline; background: #f1f1f4; border: 1px solid #c9cbd6; border-left: 4px solid #4b4f6b; border-radius: 8px; padding: 0.6rem 0.9rem; margin: 0.6rem 0 0.9rem; color: #2b2e45; }
+
+
+/* Migas de pan: franja propia bajo la barra superior (no desplaza la búsqueda) */
+.app-migas {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  font-size: 1.02rem;
+  background: var(--color-superficie);
+  border-bottom: 1px solid var(--color-borde);
+}
+.app-migas__tramo { display: inline-flex; align-items: center; gap: 0.5rem; }
+.app-migas__item { color: var(--color-texto-suave); }
+.app-migas__separador { color: var(--color-texto-suave); opacity: 0.6; font-size: 1.2rem; line-height: 1; }
+.app-migas__actual {
+  color: var(--color-marca);
+  background: #eef0fb;
+  padding: 0.2rem 0.75rem;
+  border-radius: 999px;
+  font-weight: 700;
+}

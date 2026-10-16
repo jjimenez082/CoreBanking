@@ -123,6 +123,9 @@ builder.Services.AddScoped<NotificacionesRepositorio>(); // Campanita de notific
 builder.Services.AddHttpClient<KeycloakAdminServicio>();      // Admin API de Keycloak (alta/baja de usuarios)
 builder.Services.AddScoped<UsuarioRepositorio>();
 builder.Services.AddScoped<UnidadRepositorio>();
+builder.Services.AddScoped<CatalogoFinancieroRepositorio>(); // Creditos: tasas de referencia, calendarios, categorias regulatorias
+builder.Services.AddScoped<ReglasRepositorio>();               // Motor de reglas (GEN-008)
+builder.Services.AddScoped<ProductoRepositorio>();            // Creditos: productos operativos y comerciales
 builder.Services.AddScoped<MonedaRepositorio>();         // Administracion transversal: monedas
 builder.Services.AddScoped<TipoCambioRepositorio>();     // tipo de cambio (carga por gestion)
 builder.Services.AddScoped<FeriadoRepositorio>();        // calendario de feriados / dias habiles
@@ -224,6 +227,8 @@ app.MapOrganizacionEndpoints();
 app.MapUsuariosEndpoints();
 app.MapPerfilDatosEndpoints();
 app.MapAdminTransversalEndpoints();
+app.MapCreditosEndpoints();
+app.MapReglasEndpoints();
 app.MapAprobacionAdminEndpoints();
 app.MapDocumentoEndpoints();
 
